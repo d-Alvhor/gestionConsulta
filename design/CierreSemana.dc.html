@@ -1,0 +1,71 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&family=IBM+Plex+Mono:wght@400;500&family=Newsreader:ital,wght@0,500;1,500&display=swap">
+  <style>
+    body { margin: 0; font-family: "IBM Plex Sans", "Helvetica Neue", Arial, sans-serif; color: #1B2726; background: #F6F7F4; -webkit-font-smoothing: antialiased; }
+    a { color: #2F6E68; } a:hover { color: #245853; }
+    .mono { font-family: "IBM Plex Mono", "SFMono-Regular", Menlo, monospace; font-variant-numeric: tabular-nums; }
+    .label { font-size: 11px; letter-spacing: .06em; text-transform: uppercase; color: #66746F; font-weight: 500; }
+    .row { display: flex; align-items: center; gap: 8px; }
+    .btn { display: inline-flex; align-items: center; gap: 8px; height: 38px; padding: 0 16px; border-radius: 8px; font-size: 14px; font-weight: 500; border: 1px solid #D9DFDB; background: #FFFFFF; color: #1B2726; }
+    .btn-primary { background: #2F6E68; border-color: #2F6E68; color: #FFFFFF; }
+    .sess { display: grid; grid-template-columns: 96px 1fr 300px 90px; gap: 12px; align-items: center; padding: 10px 0; border-bottom: 1px solid #E6EAE7; font-size: 14px; }
+    .seg { display: flex; border: 1px solid #D9DFDB; border-radius: 8px; overflow: hidden; background: #FFFFFF; }
+    .seg div { flex: 1; height: 32px; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 500; color: #66746F; border-right: 1px solid #D9DFDB; }
+    .seg div:last-child { border-right: 0; }
+    .ok { background: #2F6E68; color: #FFFFFF; }
+    .canc { background: #F0E4CC; color: #5A4416; }
+    .nov { background: #F2DADA; color: #6A2E2E; }
+    .day { padding: 14px 0 4px; }
+  </style>
+</helmet>
+
+<div style="width: 820px; height: 720px; box-sizing: border-box; background: #FFFFFF; border: 1px solid #D9DFDB; border-radius: 14px; display: flex; flex-direction: column; overflow: hidden;">
+
+  <div style="padding: 20px 24px 16px; border-bottom: 1px solid #E6EAE7; display: flex; flex-direction: column; gap: 14px;">
+    <div class="row" style="justify-content: space-between;">
+      <div><div style="font-size: 20px; font-weight: 600;">Dar el OK a la semana 37</div><div style="font-size: 13px; color: #66746F; margin-top: 2px;">Marca lo que pasó de verdad. Las sesiones realizadas quedan listas para facturar.</div></div>
+      <div class="row" style="gap: 18px;">
+        <div><div class="label">Sesiones</div><div class="mono" style="font-size: 18px; font-weight: 600;">14</div></div>
+        <div><div class="label">Realizadas</div><div class="mono" style="font-size: 18px; font-weight: 600; color: #2F6E68;">12</div></div>
+        <div><div class="label">A facturar</div><div class="mono" style="font-size: 18px; font-weight: 600;">720,00 €</div></div>
+      </div>
+    </div>
+  </div>
+
+  <div style="flex: 1; padding: 0 24px; overflow: hidden;">
+    <div class="day label">Lunes 7</div>
+    <div class="sess"><div class="mono" style="color: #66746F;">10:00</div><div class="row"><div style="width: 10px; height: 10px; border-radius: 50%; background: #2E4A22;"></div>Marta R.</div><div class="seg"><div class="ok">Realizada</div><div>Cancelada</div><div>No vino</div></div><div class="mono" style="text-align: right;">60,00 €</div></div>
+    <div class="sess"><div class="mono" style="color: #66746F;">11:00</div><div class="row"><div style="width: 10px; height: 10px; border-radius: 50%; background: #2E4A22;"></div>Tomás B.</div><div class="seg"><div class="ok">Realizada</div><div>Cancelada</div><div>No vino</div></div><div class="mono" style="text-align: right;">60,00 €</div></div>
+    <div class="sess"><div class="mono" style="color: #66746F;">17:00</div><div class="row"><div style="width: 10px; height: 10px; border-radius: 50%; background: #5A4416;"></div>Andrés M.</div><div class="seg"><div>Realizada</div><div class="canc">Cancelada</div><div>No vino</div></div><div class="row" style="justify-content: flex-end; gap: 6px; font-size: 12px; color: #66746F;"><div style="width: 16px; height: 16px; border: 1.5px solid #D9DFDB; border-radius: 4px;"></div>se cobra</div></div>
+
+    <div class="day label">Martes 8</div>
+    <div class="sess"><div class="mono" style="color: #66746F;">10:00</div><div class="row"><div style="width: 10px; height: 10px; border-radius: 50%; background: #5A4416;"></div>Sofía A. <span style="font-size: 12px; color: #66746F;">online</span></div><div class="seg"><div class="ok">Realizada</div><div>Cancelada</div><div>No vino</div></div><div class="mono" style="text-align: right;">60,00 €</div></div>
+    <div class="sess"><div class="mono" style="color: #66746F;">17:00</div><div class="row"><div style="width: 10px; height: 10px; border-radius: 50%; background: #1F3F5C;"></div>Jorge L. <span class="mono" style="font-size: 11px; color: #66746F;">SEM. A</span></div><div class="seg"><div class="ok">Realizada</div><div>Cancelada</div><div>No vino</div></div><div class="mono" style="text-align: right;">60,00 €</div></div>
+
+    <div class="day label">Miércoles 9</div>
+    <div class="sess"><div class="mono" style="color: #66746F;">12:00</div><div class="row"><div style="width: 10px; height: 10px; border-radius: 50%; background: #1F4E45;"></div>Nora S. <span style="font-size: 12px; color: #66746F;">online</span></div><div class="seg"><div class="ok">Realizada</div><div>Cancelada</div><div>No vino</div></div><div class="mono" style="text-align: right;">60,00 €</div></div>
+    <div class="sess"><div class="mono" style="color: #66746F;">18:00</div><div class="row"><div style="width: 10px; height: 10px; border-radius: 50%; background: #6A2E2E;"></div>Hugo F.</div><div class="seg"><div>Realizada</div><div>Cancelada</div><div class="nov">No vino</div></div><div class="row" style="justify-content: flex-end; gap: 6px; font-size: 12px; color: #1B2726;"><div style="width: 16px; height: 16px; border-radius: 4px; background: #2F6E68; display: flex; align-items: center; justify-content: center;"><svg width="10" height="10" viewBox="0 0 16 16" fill="none" stroke="#FFFFFF" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m3 8.5 3 3 7-7"></path></svg></div>se cobra</div></div>
+
+    <div class="day label">Jueves 10</div>
+    <div class="sess"><div class="mono" style="color: #66746F;">10:00</div><div class="row"><div style="width: 10px; height: 10px; border-radius: 50%; background: #1F3F5C;"></div>Elena C.</div><div class="seg"><div class="ok">Realizada</div><div>Cancelada</div><div>No vino</div></div><div class="mono" style="text-align: right;">60,00 €</div></div>
+    <div class="sess"><div class="mono" style="color: #66746F;">17:00</div><div class="row"><div style="width: 10px; height: 10px; border-radius: 50%; background: #42305E;"></div>Lucía P.</div><div class="seg"><div class="ok">Realizada</div><div>Cancelada</div><div>No vino</div></div><div class="mono" style="text-align: right;">60,00 €</div></div>
+    <div class="sess" style="border-bottom: 0;"><div class="mono" style="color: #66746F;">18:00</div><div class="row"><div style="width: 10px; height: 10px; border-radius: 50%; background: #6A2E2E;"></div>Carla y Dani <span style="font-size: 12px; color: #66746F;">pareja</span></div><div class="seg"><div class="ok">Realizada</div><div>Cancelada</div><div>No vino</div></div><div class="mono" style="text-align: right;">80,00 €</div></div>
+    <div style="font-size: 12px; color: #66746F; padding: 8px 0;">… y 3 sesiones más el viernes</div>
+  </div>
+
+  <div class="row" style="justify-content: space-between; padding: 14px 24px; border-top: 1px solid #E6EAE7; background: #FBFCFA;">
+    <div style="font-size: 13px; color: #66746F;">Podrás corregir una sesión después mientras no esté en una factura emitida.</div>
+    <div class="row" style="gap: 10px;"><div class="btn">Cerrar sin OK</div><div class="btn btn-primary"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="#FFFFFF" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m3 8.5 3 3 7-7"></path></svg>Dar el OK · 13 sesiones</div></div>
+  </div>
+</div>
+</x-dc>
+</body>
+</html>

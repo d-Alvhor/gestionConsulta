@@ -1,0 +1,23 @@
+{
+  "pages": [
+    { "id": "principal", "name": "Cuadrante" },
+    { "id": "alternativas", "name": "Direcciones alternativas" }
+  ],
+  "artboards": [
+    { "file": "Main.dc.html", "title": "Semana · escritorio (arrastre en curso)", "x": 0, "y": 0, "w": 1440, "h": 900, "page": "principal" },
+    { "file": "Movil.dc.html", "title": "Semana · móvil (día a día)", "x": 1520, "y": 0, "w": 390, "h": 844, "page": "principal" },
+    { "file": "Paciente.dc.html", "title": "Ficha de paciente", "x": 2000, "y": 0, "w": 760, "h": 960, "page": "principal" },
+    { "file": "Recolocar.dc.html", "title": "Propuesta de recolocación", "x": 0, "y": 1100, "w": 820, "h": 640, "page": "principal" },
+    { "file": "CierreSemana.dc.html", "title": "Dar el OK a la semana", "x": 900, "y": 1100, "w": 820, "h": 720, "page": "principal" },
+    { "file": "Facturas.dc.html", "title": "Facturas", "x": 0, "y": 1960, "w": 1440, "h": 900, "page": "principal" },
+    { "file": "FacturaA4.dc.html", "title": "Factura A4 (impresión)", "x": 1520, "y": 1960, "w": 794, "h": 1123, "print": "fixed", "page": "principal" },
+    { "file": "DireccionB.dc.html", "title": "Dirección B", "x": 0, "y": 0, "w": 720, "h": 480, "page": "alternativas" },
+    { "file": "DireccionC.dc.html", "title": "Dirección C", "x": 800, "y": 0, "w": 720, "h": 480, "page": "alternativas" }
+  ],
+  "annotations": [
+    { "id": "nota-direccion", "x": 2000, "y": 1100, "w": 360, "page": "principal", "text": "Dirección elegida: «agenda de papel de la consulta». Eucalipto para la acción principal y el foco, ocre para «ahora» y lo pendiente, tintas suaves por paciente. IBM Plex Sans/Mono + Newsreader itálica solo en el wordmark.\n\nSupuestos: consulta de una sola persona; sesiones de 50 min en huecos de 60; lunes a viernes 9–14 y 16–20 (configurable); datos en el propio dispositivo con copia de seguridad exportable." },
+    { "id": "nota-flujo", "x": 2000, "y": 1400, "w": 360, "page": "principal", "text": "Flujo semanal:\n1. Arrastrar cajas o pulsar «Recolocar» → propuesta → Aplicar.\n2. Viernes: «Dar el OK a la semana» → realizada / cancelada / no vino.\n3. Facturas → «Generar borradores» → revisar → Emitir (número correlativo) → PDF / CSV gestoría." },
+    { "id": "nota-alt", "x": 0, "y": -140, "w": 700, "page": "alternativas", "text": "Dos direcciones que NO elegí, en baja fidelidad, para que puedas comparar. La principal (página «Cuadrante») está entre ambas: rejilla real de horas como B, pero con el color y el aire de C." }
+  ],
+  "launch": { "view": "canvas", "page": "principal" }
+}

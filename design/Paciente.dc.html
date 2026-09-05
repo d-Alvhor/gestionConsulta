@@ -1,0 +1,100 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&family=IBM+Plex+Mono:wght@400;500&family=Newsreader:ital,wght@0,500;1,500&display=swap">
+  <style>
+    body { margin: 0; font-family: "IBM Plex Sans", "Helvetica Neue", Arial, sans-serif; color: #1B2726; background: #F6F7F4; -webkit-font-smoothing: antialiased; }
+    a { color: #2F6E68; } a:hover { color: #245853; }
+    .mono { font-family: "IBM Plex Mono", "SFMono-Regular", Menlo, monospace; font-variant-numeric: tabular-nums; }
+    .label { font-size: 11px; letter-spacing: .06em; text-transform: uppercase; color: #66746F; font-weight: 500; }
+    .row { display: flex; align-items: center; gap: 8px; }
+    .field { display: flex; flex-direction: column; gap: 6px; }
+    .input { height: 38px; border: 1px solid #D9DFDB; border-radius: 8px; background: #FFFFFF; padding: 0 12px; display: flex; align-items: center; font-size: 14px; }
+    .seg { display: flex; border: 1px solid #D9DFDB; border-radius: 8px; overflow: hidden; background: #FFFFFF; }
+    .seg div { flex: 1; height: 36px; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 500; color: #66746F; border-right: 1px solid #D9DFDB; }
+    .seg div:last-child { border-right: 0; }
+    .seg .on { background: #1B2726; color: #FFFFFF; }
+    .avail { display: grid; grid-template-columns: 72px repeat(5, minmax(0,1fr)); gap: 8px; align-items: center; }
+    .av { height: 40px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 600; }
+    .av-ok { background: #DDE9E7; color: #2F6E68; }
+    .av-pref { background: #2F6E68; color: #FFFFFF; }
+    .av-no { background: #F3E0DF; color: #B5433C; }
+    .btn { display: inline-flex; align-items: center; gap: 8px; height: 38px; padding: 0 16px; border-radius: 8px; font-size: 14px; font-weight: 500; border: 1px solid #D9DFDB; background: #FFFFFF; color: #1B2726; }
+    .btn-primary { background: #2F6E68; border-color: #2F6E68; color: #FFFFFF; }
+    .sw { width: 28px; height: 28px; border-radius: 50%; }
+    .section { padding-top: 18px; border-top: 1px solid #E6EAE7; display: flex; flex-direction: column; gap: 14px; }
+  </style>
+</helmet>
+
+<div style="width: 760px; height: 960px; box-sizing: border-box; background: #FFFFFF; border: 1px solid #D9DFDB; border-radius: 14px; display: flex; flex-direction: column; overflow: hidden;">
+
+  <div class="row" style="justify-content: space-between; padding: 20px 24px 16px; border-bottom: 1px solid #E6EAE7;">
+    <div style="font-size: 20px; font-weight: 600;">Ficha de paciente</div>
+    <div style="font-size: 12px; color: #66746F;">Usa iniciales o un alias: el nombre solo lo ves tú, pero cuanto menos, mejor.</div>
+  </div>
+
+  <div style="flex: 1; padding: 20px 24px; display: flex; flex-direction: column; gap: 18px; overflow: hidden;">
+
+    <div style="display: grid; grid-template-columns: 1fr 200px; gap: 16px;">
+      <div class="field"><div class="label">Nombre o alias</div><div class="input" style="font-weight: 500;">Lucía P.</div></div>
+      <div class="field"><div class="label">Color</div><div class="row" style="gap: 8px; height: 38px;"><div class="sw" style="background: #DCE8D2;"></div><div class="sw" style="background: #D6E4F0;"></div><div class="sw" style="background: #E3DCEF; outline: 2px solid #42305E; outline-offset: 2px;"></div><div class="sw" style="background: #F0E4CC;"></div><div class="sw" style="background: #F2DADA;"></div><div class="sw" style="background: #D3ECE6;"></div></div></div>
+    </div>
+
+    <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px;">
+      <div class="field"><div class="label">Frecuencia</div><div class="seg"><div class="on">Semanal</div><div>Quincenal A</div><div>Quincenal B</div><div>Puntual</div></div></div>
+      <div class="field"><div class="label">Duración</div><div class="seg"><div class="on">50 min</div><div>60 min</div><div>90 min</div></div></div>
+      <div class="field"><div class="label">Modalidad</div><div class="seg"><div class="on">Presencial</div><div>Online</div></div></div>
+      <div class="field"><div class="label">Tarifa por sesión</div><div class="input mono">60,00 €</div></div>
+    </div>
+
+    <div class="section">
+      <div class="row" style="justify-content: space-between;"><div class="label">Disponibilidad · toca para alternar: no puede → puede → mejor</div><div style="font-size: 12px; color: #2F6E68; font-weight: 500;">+ Añadir sábado</div></div>
+      <div class="avail">
+        <div></div><div class="label" style="text-align: center;">Lun</div><div class="label" style="text-align: center;">Mar</div><div class="label" style="text-align: center;">Mié</div><div class="label" style="text-align: center;">Jue</div><div class="label" style="text-align: center;">Vie</div>
+        <div style="font-size: 13px;">Mañana</div><div class="av av-ok">puede</div><div class="av av-no">no</div><div class="av av-ok">puede</div><div class="av av-ok">puede</div><div class="av av-ok">puede</div>
+        <div style="font-size: 13px;">Tarde</div><div class="av av-pref">mejor</div><div class="av av-no">no</div><div class="av av-pref">mejor</div><div class="av av-pref">mejor</div><div class="av av-ok">puede</div>
+        <div style="font-size: 12px; color: #66746F;">Horas</div><div class="input mono" style="height: 32px; font-size: 12px; padding: 0 8px;">16:00–20:00</div><div class="input mono" style="height: 32px; font-size: 12px; padding: 0 8px; color: #66746F;">—</div><div class="input mono" style="height: 32px; font-size: 12px; padding: 0 8px;">16:00–20:00</div><div class="input mono" style="height: 32px; font-size: 12px; padding: 0 8px;">17:00–19:00</div><div class="input mono" style="height: 32px; font-size: 12px; padding: 0 8px; color: #66746F;">cualquiera</div>
+      </div>
+      <div class="field"><div class="label">Motivos (para acordarte tú)</div>
+        <div style="display: grid; grid-template-columns: 60px 1fr; gap: 8px 12px; align-items: center;">
+          <div class="mono" style="font-size: 12px; color: #B5433C;">Mar</div><div class="input" style="height: 34px; font-size: 13px;">Turno de tarde en el hospital; las mañanas duerme</div>
+          <div class="mono" style="font-size: 12px; color: #2F6E68;">Tardes</div><div class="input" style="height: 34px; font-size: 13px;">Sale a las 15:30; llega bien a partir de las 16:00</div>
+          <div class="mono" style="font-size: 12px; color: #66746F;">Jue</div><div class="input" style="height: 34px; font-size: 13px; color: #66746F;">Añadir motivo…</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="row" style="justify-content: space-between;">
+        <div class="row" style="gap: 10px;"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="#1B2726" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M9.5 1.5 14.5 6.5 11.5 7.5 8.5 10.5 8 14 2 8 5.5 7.5 8.5 4.5z"></path><path d="M2 14l3.5-3.5"></path></svg><div><div style="font-size: 14px; font-weight: 500;">Hueco fijo</div><div style="font-size: 12px; color: #66746F;">El recolocador nunca lo mueve. Solo tú, arrastrando.</div></div></div>
+        <div class="row" style="gap: 10px;"><div class="input mono" style="height: 34px; font-size: 13px; color: #66746F;">Mié 16:00</div><div style="width: 38px; height: 22px; border-radius: 11px; background: #D9DFDB; position: relative;"><div style="position: absolute; top: 2px; left: 2px; width: 18px; height: 18px; border-radius: 50%; background: #FFFFFF; box-shadow: 0 1px 2px rgba(0,0,0,.2);"></div></div></div>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="row" style="justify-content: space-between;"><div class="label">Datos de facturación</div><div style="font-size: 12px; color: #66746F;">Solo si quiere factura completa a su nombre</div></div>
+      <div style="display: grid; grid-template-columns: 1fr 160px; gap: 12px;">
+        <div class="field"><div class="label">Nombre fiscal</div><div class="input">Lucía Pérez Andrade</div></div>
+        <div class="field"><div class="label">NIF</div><div class="input mono">[NIF]</div></div>
+        <div class="field"><div class="label">Dirección</div><div class="input" style="color: #66746F;">[Calle, CP, ciudad]</div></div>
+        <div class="field"><div class="label">Factura</div><div class="seg"><div class="on">Mensual</div><div>Por sesión</div></div></div>
+      </div>
+    </div>
+
+    <div class="field" style="padding-top: 6px;"><div class="label">Notas</div><div class="input" style="height: 60px; align-items: flex-start; padding: 10px 12px; font-size: 13px; line-height: 1.45;">Avisa con poca antelación si cambia el turno. Le viene bien juntar la sesión con la salida del trabajo.</div></div>
+  </div>
+
+  <div class="row" style="justify-content: space-between; padding: 14px 24px; border-top: 1px solid #E6EAE7; background: #FBFCFA;">
+    <div style="font-size: 13px; color: #B5433C; font-weight: 500;">Dar de baja</div>
+    <div class="row" style="gap: 10px;"><div class="btn">Cancelar</div><div class="btn btn-primary">Guardar ficha</div></div>
+  </div>
+</div>
+</x-dc>
+</body>
+</html>

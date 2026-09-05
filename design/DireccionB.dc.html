@@ -1,0 +1,56 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Patrick+Hand&display=swap">
+  <style>
+    body { margin: 0; font-family: "Patrick Hand", "Comic Sans MS", cursive; color: #333333; background: #FFFFFF; }
+    a { color: #333333; } a:hover { color: #000000; }
+    .wire { border: 2px solid #333333; border-radius: 3px; }
+    .ghost { border: 2px dashed #999999; border-radius: 3px; color: #999999; }
+    .box { border: 2px solid #333333; border-radius: 3px; background: #EFEFEF; padding: 2px 6px; font-size: 13px; line-height: 1.1; }
+    .h { font-size: 11px; color: #777777; }
+  </style>
+</helmet>
+
+<div style="width: 720px; height: 480px; box-sizing: border-box; padding: 16px; background: #FFFFFF; display: flex; flex-direction: column; gap: 10px;">
+  <div style="display: flex; justify-content: space-between; align-items: baseline;">
+    <div style="font-size: 22px;">Dirección B · «Densa, datos primero»</div>
+    <div style="font-size: 14px; color: #777777;">chrome oscuro · filas de 30 min · teclado</div>
+  </div>
+  <div style="flex: 1; display: flex; gap: 10px; min-height: 0;">
+    <div style="width: 150px; background: #333333; color: #FFFFFF; border-radius: 3px; padding: 10px; display: flex; flex-direction: column; gap: 8px; font-size: 14px;">
+      <div>▸ Semana</div><div style="opacity: .6;">Pacientes</div><div style="opacity: .6;">Facturas</div>
+      <div style="margin-top: 10px; font-size: 11px; opacity: .6;">SIN HUECO</div>
+      <div style="border: 1px dashed #FFFFFF; padding: 3px 6px; font-size: 12px;">Nerea O.</div>
+      <div style="border: 1px dashed #FFFFFF; padding: 3px 6px; font-size: 12px;">Iván T.</div>
+      <div style="margin-top: auto; font-size: 11px; opacity: .6;">⌘K buscar · R recolocar</div>
+    </div>
+    <div class="wire" style="flex: 1; display: grid; grid-template-columns: 44px repeat(5, 1fr); grid-auto-rows: 22px; overflow: hidden;">
+      <div></div><div class="h" style="text-align: center;">L</div><div class="h" style="text-align: center;">M</div><div class="h" style="text-align: center; background: #FFF3D6;">X</div><div class="h" style="text-align: center;">J</div><div class="h" style="text-align: center;">V</div>
+      <div class="h">9:00</div><div class="box">Marta</div><div class="ghost"></div><div></div><div class="box">Elena</div><div></div>
+      <div class="h">9:30</div><div class="box" style="background: #EFEFEF; border-top: 0;">↳</div><div class="ghost"></div><div></div><div class="box" style="border-top: 0;">↳</div><div></div>
+      <div class="h">10:00</div><div class="box">Tomás</div><div class="ghost"></div><div></div><div></div><div class="box">Pablo</div>
+      <div class="h">10:30</div><div class="box" style="border-top: 0;">↳</div><div class="ghost"></div><div></div><div></div><div class="box" style="border-top: 0;">↳</div>
+      <div class="h">11:00</div><div></div><div class="ghost"></div><div class="box">Nora</div><div></div><div></div>
+      <div class="h">11:30</div><div></div><div class="ghost"></div><div class="box" style="border-top: 0;">↳</div><div></div><div></div>
+      <div class="h">12:00</div><div></div><div class="ghost"></div><div></div><div></div><div></div>
+      <div class="h" style="grid-column: 1 / -1; text-align: center; background: #F5F5F5;">— comida —</div>
+      <div class="h">16:00</div><div></div><div class="ghost"></div><div class="box" style="border: 2px dashed #333333; background: #FFFFFF;">Lucía →</div><div></div><div></div>
+      <div class="h">16:30</div><div></div><div class="ghost"></div><div></div><div></div><div></div>
+      <div class="h">17:00</div><div class="box">Andrés (fijo)</div><div class="ghost"></div><div></div><div class="box" style="background: #D9F0EC;">soltar</div><div class="box">Raúl</div>
+      <div class="h">17:30</div><div class="box" style="border-top: 0;">↳</div><div class="ghost"></div><div></div><div class="box" style="background: #D9F0EC; border-top: 0;">↳</div><div class="box" style="border-top: 0;">↳</div>
+      <div class="h">18:00</div><div></div><div class="ghost"></div><div class="box" style="background: #FFE0DE;">Hugo (!)</div><div class="box">Carla+Dani</div><div></div>
+      <div class="h">18:30</div><div></div><div class="ghost"></div><div class="box" style="background: #FFE0DE; border-top: 0;">↳</div><div class="box" style="border-top: 0;">↳</div><div></div>
+    </div>
+  </div>
+  <div style="font-size: 14px; color: #555555;">Motivación: máxima información por pantalla, sesiones de 30/50/90 min encajan exactas. Contra: más ruido para la vista diaria en el móvil, y el color de paciente casi desaparece.</div>
+</div>
+</x-dc>
+</body>
+</html>

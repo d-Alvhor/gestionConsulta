@@ -1,0 +1,109 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&family=IBM+Plex+Mono:wght@400;500&family=Newsreader:ital,wght@0,500;1,500&display=swap">
+  <style>
+    body { margin: 0; font-family: "IBM Plex Sans", "Helvetica Neue", Arial, sans-serif; color: #1B2726; background: #F6F7F4; -webkit-font-smoothing: antialiased; }
+    a { color: #2F6E68; } a:hover { color: #245853; }
+    .mono { font-family: "IBM Plex Mono", "SFMono-Regular", Menlo, monospace; font-variant-numeric: tabular-nums; }
+    .label { font-size: 11px; letter-spacing: .06em; text-transform: uppercase; color: #66746F; font-weight: 500; }
+    .row { display: flex; align-items: center; gap: 8px; }
+    .btn { display: inline-flex; align-items: center; gap: 8px; height: 36px; padding: 0 14px; border-radius: 8px; font-size: 14px; font-weight: 500; border: 1px solid #D9DFDB; background: #FFFFFF; color: #1B2726; }
+    .btn-primary { background: #2F6E68; border-color: #2F6E68; color: #FFFFFF; }
+    .tab { height: 56px; display: flex; align-items: center; padding: 0 4px; font-size: 14px; font-weight: 500; color: #66746F; border-bottom: 2px solid transparent; }
+    .tab-on { color: #1B2726; border-bottom-color: #2F6E68; }
+    .tr { display: grid; grid-template-columns: 120px 1fr 150px 80px 110px 110px 40px; gap: 12px; align-items: center; height: 52px; padding: 0 16px; border-bottom: 1px solid #E6EAE7; font-size: 14px; }
+    .tr-sel { background: rgba(47,110,104,.07); }
+    .st { display: inline-flex; align-items: center; height: 24px; padding: 0 9px; border-radius: 6px; font-size: 12px; font-weight: 500; }
+    .st-b { background: #F0E4CC; color: #5A4416; }
+    .st-e { background: #DDE9E7; color: #2F6E68; }
+    .st-p { background: #DEE2E7; color: #2F3A47; }
+    .fil { height: 34px; display: flex; align-items: center; padding: 0 12px; border-radius: 8px; font-size: 13px; font-weight: 500; color: #66746F; }
+    .fil-on { background: #1B2726; color: #FFFFFF; }
+  </style>
+</helmet>
+
+<div style="width: 1440px; height: 900px; display: flex; flex-direction: column; background: #F6F7F4; overflow: hidden;">
+
+  <div style="height: 56px; display: flex; align-items: center; gap: 28px; padding: 0 20px; background: #FFFFFF; border-bottom: 1px solid #D9DFDB;">
+    <div style="font-family: Newsreader, Georgia, serif; font-style: italic; font-weight: 500; font-size: 24px;">Cuadrante</div>
+    <div style="display: flex; gap: 20px;"><div class="tab">Semana</div><div class="tab">Pacientes</div><div class="tab tab-on">Facturas</div></div>
+    <div class="row" style="margin-left: auto; gap: 10px;">
+      <div class="btn"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="#1B2726" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2v8M4.5 6.5 8 10l3.5-3.5M2.5 13.5h11"></path></svg>Exportar mes (CSV gestoría)</div>
+      <div class="btn btn-primary"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="#FFFFFF" stroke-width="1.8" stroke-linecap="round"><path d="M8 3v10M3 8h10"></path></svg>Generar borradores · 3</div>
+    </div>
+  </div>
+
+  <div style="flex: 1; display: flex; min-height: 0;">
+    <div style="width: 280px; flex: none; padding: 18px 16px; border-right: 1px solid #D9DFDB; background: #FBFCFA; display: flex; flex-direction: column; gap: 20px;">
+      <div style="display: flex; flex-direction: column; gap: 8px;">
+        <div class="label">Mes</div>
+        <div class="row" style="justify-content: space-between; height: 36px; padding: 0 10px; border: 1px solid #D9DFDB; border-radius: 8px; background: #FFFFFF; font-size: 14px; font-weight: 500;"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="#1B2726" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10 3 5 8l5 5"></path></svg>Septiembre 2026<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="#1B2726" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="m6 3 5 5-5 5"></path></svg></div>
+      </div>
+      <div style="display: flex; flex-direction: column; gap: 4px;">
+        <div class="label" style="padding: 0 0 6px;">Estado</div>
+        <div class="fil fil-on">Todas · 9</div><div class="fil">Borradores · 3</div><div class="fil">Emitidas · 5</div><div class="fil">Pagadas · 1</div>
+      </div>
+      <div style="padding: 14px; border: 1px solid #E6D9C2; background: #FBF4E6; border-radius: 10px; display: flex; flex-direction: column; gap: 6px;">
+        <div class="label" style="color: #8A5F1E;">Pendiente de facturar</div>
+        <div class="mono" style="font-size: 22px; font-weight: 600; color: #5A4416;">420,00 €</div>
+        <div style="font-size: 12px; color: #5A4416;">7 sesiones con OK de 3 pacientes, aún sin borrador.</div>
+      </div>
+      <div style="padding: 14px; border: 1px solid #D9DFDB; background: #FFFFFF; border-radius: 10px; display: flex; flex-direction: column; gap: 6px;">
+        <div class="label">Septiembre</div>
+        <div class="row" style="justify-content: space-between; font-size: 13px;"><span style="color: #66746F;">Emitido</span><span class="mono">1.020,00 €</span></div>
+        <div class="row" style="justify-content: space-between; font-size: 13px;"><span style="color: #66746F;">Cobrado</span><span class="mono">240,00 €</span></div>
+        <div class="row" style="justify-content: space-between; font-size: 13px;"><span style="color: #66746F;">Siguiente nº</span><span class="mono">F-2026-042</span></div>
+      </div>
+    </div>
+
+    <div style="flex: 1; min-width: 0; display: flex; flex-direction: column; padding: 16px;">
+      <div style="background: #FFFFFF; border: 1px solid #D9DFDB; border-radius: 10px; overflow: hidden;">
+        <div class="tr" style="height: 40px; background: #FBFCFA;"><div class="label">Nº</div><div class="label">Paciente</div><div class="label">Periodo</div><div class="label" style="text-align: right;">Sesiones</div><div class="label" style="text-align: right;">Importe</div><div class="label">Estado</div><div></div></div>
+        <div class="tr tr-sel"><div class="mono">F-2026-041</div><div class="row"><div style="width: 10px; height: 10px; border-radius: 50%; background: #42305E;"></div>Lucía Pérez Andrade</div><div style="color: #66746F;">Sept 2026</div><div class="mono" style="text-align: right;">4</div><div class="mono" style="text-align: right;">240,00 €</div><div><span class="st st-e">Emitida</span></div><div style="color: #66746F;">···</div></div>
+        <div class="tr"><div class="mono" style="color: #66746F;">—</div><div class="row"><div style="width: 10px; height: 10px; border-radius: 50%; background: #2E4A22;"></div>Marta R.</div><div style="color: #66746F;">Sept 2026</div><div class="mono" style="text-align: right;">3</div><div class="mono" style="text-align: right;">180,00 €</div><div><span class="st st-b">Borrador</span></div><div style="color: #66746F;">···</div></div>
+        <div class="tr"><div class="mono" style="color: #66746F;">—</div><div class="row"><div style="width: 10px; height: 10px; border-radius: 50%; background: #1F4E45;"></div>Nora S.</div><div style="color: #66746F;">Sept 2026</div><div class="mono" style="text-align: right;">2</div><div class="mono" style="text-align: right;">120,00 €</div><div><span class="st st-b">Borrador</span></div><div style="color: #66746F;">···</div></div>
+        <div class="tr"><div class="mono" style="color: #66746F;">—</div><div class="row"><div style="width: 10px; height: 10px; border-radius: 50%; background: #6A2E2E;"></div>Carla y Dani</div><div style="color: #66746F;">Sesión 10 sept</div><div class="mono" style="text-align: right;">1</div><div class="mono" style="text-align: right;">80,00 €</div><div><span class="st st-b">Borrador</span></div><div style="color: #66746F;">···</div></div>
+        <div class="tr"><div class="mono">F-2026-040</div><div class="row"><div style="width: 10px; height: 10px; border-radius: 50%; background: #5A4416;"></div>Andrés M.</div><div style="color: #66746F;">Agosto 2026</div><div class="mono" style="text-align: right;">4</div><div class="mono" style="text-align: right;">240,00 €</div><div><span class="st st-p">Pagada</span></div><div style="color: #66746F;">···</div></div>
+        <div class="tr"><div class="mono">F-2026-039</div><div class="row"><div style="width: 10px; height: 10px; border-radius: 50%; background: #1F3F5C;"></div>Elena C.</div><div style="color: #66746F;">Agosto 2026</div><div class="mono" style="text-align: right;">3</div><div class="mono" style="text-align: right;">180,00 €</div><div><span class="st st-e">Emitida</span></div><div style="color: #66746F;">···</div></div>
+        <div class="tr"><div class="mono">F-2026-038</div><div class="row"><div style="width: 10px; height: 10px; border-radius: 50%; background: #6B3A1D;"></div>Pablo V.</div><div style="color: #66746F;">Agosto 2026</div><div class="mono" style="text-align: right;">4</div><div class="mono" style="text-align: right;">240,00 €</div><div><span class="st st-e">Emitida</span></div><div style="color: #66746F;">···</div></div>
+        <div class="tr" style="border-bottom: 0;"><div class="mono">F-2026-037</div><div class="row"><div style="width: 10px; height: 10px; border-radius: 50%; background: #2F3A47;"></div>Irene G.</div><div style="color: #66746F;">Agosto 2026</div><div class="mono" style="text-align: right;">2</div><div class="mono" style="text-align: right;">120,00 €</div><div><span class="st st-e">Emitida</span></div><div style="color: #66746F;">···</div></div>
+      </div>
+    </div>
+
+    <div style="width: 380px; flex: none; border-left: 1px solid #D9DFDB; background: #FFFFFF; display: flex; flex-direction: column; gap: 14px; padding: 18px;">
+      <div class="row" style="justify-content: space-between;"><div style="font-size: 16px; font-weight: 600;" class="mono">F-2026-041</div><span class="st st-e">Emitida · 30 sept</span></div>
+      <div style="border: 1px solid #D9DFDB; border-radius: 6px; padding: 22px 20px; display: flex; flex-direction: column; gap: 14px; font-size: 10px; line-height: 1.4; color: #1B2726; background: #FFFFFF; box-shadow: 0 1px 3px rgba(27,39,38,.08);">
+        <div class="row" style="justify-content: space-between; align-items: flex-start;">
+          <div><div style="font-family: Newsreader, Georgia, serif; font-style: italic; font-size: 14px;">[Tu nombre]</div><div style="color: #66746F;">Psicóloga General Sanitaria · Col. [XX-00000]<br>NIF [00000000X] · [Dirección de la consulta]</div></div>
+          <div style="text-align: right;"><div style="font-weight: 600;">Factura F-2026-041</div><div style="color: #66746F;">30/09/2026</div></div>
+        </div>
+        <div><div class="label" style="font-size: 8px;">Cliente</div><div>Lucía Pérez Andrade · NIF [XXXXXXXXX]<br>[Dirección]</div></div>
+        <div style="display: grid; grid-template-columns: 52px 1fr 60px; gap: 4px 8px; border-top: 1px solid #E6EAE7; border-bottom: 1px solid #E6EAE7; padding: 6px 0;">
+          <div class="mono">03/09</div><div>Sesión de psicología (50 min)</div><div class="mono" style="text-align: right;">60,00 €</div>
+          <div class="mono">10/09</div><div>Sesión de psicología (50 min)</div><div class="mono" style="text-align: right;">60,00 €</div>
+          <div class="mono">17/09</div><div>Sesión de psicología (50 min)</div><div class="mono" style="text-align: right;">60,00 €</div>
+          <div class="mono">24/09</div><div>Sesión de psicología (50 min)</div><div class="mono" style="text-align: right;">60,00 €</div>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 2px; align-items: flex-end;"><div class="row" style="gap: 16px;"><span style="color: #66746F;">Base</span><span class="mono">240,00 €</span></div><div class="row" style="gap: 16px;"><span style="color: #66746F;">IVA</span><span>Exento</span></div><div class="row" style="gap: 16px; font-weight: 600; font-size: 12px;"><span>Total</span><span class="mono">240,00 €</span></div></div>
+        <div style="color: #66746F; font-size: 8.5px;">Operación exenta de IVA conforme al art. 20.Uno.3.º de la Ley 37/1992 (asistencia sanitaria prestada por profesional sanitario). Pago por transferencia a [IBAN].</div>
+      </div>
+      <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px;">
+        <div class="btn" style="justify-content: center;"><svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="#1B2726" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6V2.5h8V6M4 12H2.5V7h11v5H12M4 10h8v3.5H4z"></path></svg>Imprimir / PDF</div>
+        <div class="btn" style="justify-content: center;"><svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="#1B2726" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2v8M4.5 6.5 8 10l3.5-3.5M2.5 13.5h11"></path></svg>Descargar</div>
+        <div class="btn" style="justify-content: center;">Marcar pagada</div>
+        <div class="btn" style="justify-content: center; color: #66746F;">Rectificativa…</div>
+      </div>
+      <div style="font-size: 12px; color: #66746F; line-height: 1.45; margin-top: auto; padding-top: 12px; border-top: 1px solid #E6EAE7;">Las emitidas no se borran ni se renumeran: si hay un error, se hace una rectificativa. Los borradores sí se pueden tocar.</div>
+    </div>
+  </div>
+</div>
+</x-dc>
+</body>
+</html>

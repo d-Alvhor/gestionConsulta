@@ -1,0 +1,92 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&family=IBM+Plex+Mono:wght@400;500&family=Newsreader:ital,wght@0,500;1,500&display=swap">
+  <style>
+    body { margin: 0; font-family: "IBM Plex Sans", "Helvetica Neue", Arial, sans-serif; color: #1B2726; background: #F6F7F4; -webkit-font-smoothing: antialiased; }
+    a { color: #2F6E68; } a:hover { color: #245853; }
+    .mono { font-family: "IBM Plex Mono", "SFMono-Regular", Menlo, monospace; font-variant-numeric: tabular-nums; }
+    .label { font-size: 11px; letter-spacing: .06em; text-transform: uppercase; color: #66746F; font-weight: 500; }
+    .row { display: flex; align-items: center; gap: 8px; }
+    .btn { display: inline-flex; align-items: center; gap: 8px; height: 38px; padding: 0 16px; border-radius: 8px; font-size: 14px; font-weight: 500; border: 1px solid #D9DFDB; background: #FFFFFF; color: #1B2726; }
+    .btn-primary { background: #2F6E68; border-color: #2F6E68; color: #FFFFFF; }
+    .move { display: grid; grid-template-columns: 170px 110px 24px 130px 1fr; gap: 12px; align-items: center; padding: 12px 0; border-bottom: 1px solid #E6EAE7; font-size: 14px; }
+    .chip { display: inline-flex; align-items: center; height: 26px; padding: 0 10px; border-radius: 6px; font-size: 13px; font-weight: 500; }
+    .opt { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 12px; border: 1px solid #D9DFDB; border-radius: 8px; font-size: 13px; }
+    .tog { width: 34px; height: 20px; border-radius: 10px; position: relative; flex: none; }
+    .tog div { position: absolute; top: 2px; width: 16px; height: 16px; border-radius: 50%; background: #FFFFFF; box-shadow: 0 1px 2px rgba(0,0,0,.2); }
+  </style>
+</helmet>
+
+<div style="width: 820px; height: 640px; box-sizing: border-box; background: #FFFFFF; border: 1px solid #D9DFDB; border-radius: 14px; display: flex; flex-direction: column; overflow: hidden;">
+
+  <div style="padding: 20px 24px 16px; border-bottom: 1px solid #E6EAE7; display: flex; flex-direction: column; gap: 14px;">
+    <div class="row" style="justify-content: space-between;">
+      <div><div style="font-size: 20px; font-weight: 600;">Propuesta de recolocación</div><div style="font-size: 13px; color: #66746F; margin-top: 2px;">Nada cambia hasta que pulses Aplicar. Puedes deshacer después.</div></div>
+      <div class="row" style="gap: 18px;">
+        <div><div class="label">Con hueco</div><div style="font-size: 18px; font-weight: 600;" class="mono">13 <span style="color: #66746F; font-weight: 400;">→</span> 15 <span style="font-size: 12px; color: #66746F; font-weight: 400;">de 15</span></div></div>
+        <div><div class="label">Preferencias</div><div style="font-size: 18px; font-weight: 600;" class="mono">9 <span style="color: #66746F; font-weight: 400;">→</span> 14 <span style="font-size: 12px; color: #66746F; font-weight: 400;">de 15</span></div></div>
+        <div><div class="label">Conflictos</div><div style="font-size: 18px; font-weight: 600; color: #B5433C;" class="mono">1 <span style="color: #66746F; font-weight: 400;">→</span> <span style="color: #2F6E68;">0</span></div></div>
+      </div>
+    </div>
+    <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px;">
+      <div class="opt"><span>Respetar huecos fijos</span><div class="tog" style="background: #2F6E68;"><div style="right: 2px;"></div></div></div>
+      <div class="opt"><span>Mover lo mínimo posible</span><div class="tog" style="background: #2F6E68;"><div style="right: 2px;"></div></div></div>
+      <div class="opt"><span>Compactar (sin huecos entre sesiones)</span><div class="tog" style="background: #D9DFDB;"><div style="left: 2px;"></div></div></div>
+    </div>
+  </div>
+
+  <div style="flex: 1; padding: 6px 24px; overflow: hidden;">
+    <div class="move" style="padding: 8px 0; border-bottom: 1px solid #D9DFDB;"><div class="label">Paciente</div><div class="label">Ahora</div><div></div><div class="label">Propuesto</div><div class="label">Por qué</div></div>
+
+    <div class="move">
+      <div class="row"><div style="width: 10px; height: 10px; border-radius: 50%; background: #6A2E2E;"></div>Hugo F.</div>
+      <div class="chip" style="background: #F2DADA; color: #6A2E2E; text-decoration: line-through;">Mié 18:00</div>
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="#66746F" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8h10M9 4l4 4-4 4"></path></svg>
+      <div class="chip" style="background: #F2DADA; color: #6A2E2E;">Jue 19:00</div>
+      <div style="font-size: 13px; color: #66746F;">No puede los miércoles (cuida a su madre). Jueves tarde es su preferencia.</div>
+    </div>
+    <div class="move">
+      <div class="row"><div style="width: 10px; height: 10px; border-radius: 50%; background: #1F4E45;"></div>Nerea O.</div>
+      <div class="chip" style="background: #F6F7F4; color: #C5892F;">sin hueco</div>
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="#66746F" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8h10M9 4l4 4-4 4"></path></svg>
+      <div class="chip" style="background: #D3ECE6; color: #1F4E45;">Lun 18:00</div>
+      <div style="font-size: 13px; color: #66746F;">Solo tardes; lunes libre a esa hora.</div>
+    </div>
+    <div class="move">
+      <div class="row"><div style="width: 10px; height: 10px; border-radius: 50%; background: #2F3A47;"></div>Iván T.</div>
+      <div class="chip" style="background: #F6F7F4; color: #C5892F;">sin hueco</div>
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="#66746F" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8h10M9 4l4 4-4 4"></path></svg>
+      <div class="chip" style="background: #DEE2E7; color: #2F3A47;">Mar 12:00 · sem. B</div>
+      <div style="font-size: 13px; color: #66746F;">Quincenal: comparte hueco con Sofía A. (sem. A). Online, así que no ocupa sala.</div>
+    </div>
+    <div class="move">
+      <div class="row"><div style="width: 10px; height: 10px; border-radius: 50%; background: #42305E;"></div>Lucía P.</div>
+      <div class="chip" style="background: #E3DCEF; color: #42305E; text-decoration: line-through;">Mié 16:00</div>
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="#66746F" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8h10M9 4l4 4-4 4"></path></svg>
+      <div class="chip" style="background: #E3DCEF; color: #42305E;">Jue 17:00</div>
+      <div style="font-size: 13px; color: #66746F;">Prefiere jueves 17–19. Libera el miércoles 16:00 para Nerea si hiciera falta.</div>
+    </div>
+    <div class="move" style="border-bottom: 0;">
+      <div class="row" style="color: #66746F;"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="#66746F" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M9.5 1.5 14.5 6.5 11.5 7.5 8.5 10.5 8 14 2 8 5.5 7.5 8.5 4.5z"></path></svg>Andrés M.</div>
+      <div class="chip" style="background: #F6F7F4; color: #66746F;">Lun 17:00</div>
+      <div></div>
+      <div style="font-size: 13px; color: #66746F;">se queda</div>
+      <div style="font-size: 13px; color: #66746F;">Hueco fijo. Otros 10 pacientes tampoco se mueven.</div>
+    </div>
+  </div>
+
+  <div class="row" style="justify-content: space-between; padding: 14px 24px; border-top: 1px solid #E6EAE7; background: #FBFCFA;">
+    <div style="font-size: 13px; color: #66746F;">4 cambios · 11 se quedan donde están</div>
+    <div class="row" style="gap: 10px;"><div class="btn">Probar otra combinación</div><div class="btn">Descartar</div><div class="btn btn-primary"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="#FFFFFF" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m3 8.5 3 3 7-7"></path></svg>Aplicar 4 cambios</div></div>
+  </div>
+</div>
+</x-dc>
+</body>
+</html>

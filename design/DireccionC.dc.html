@@ -1,0 +1,36 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Patrick+Hand&display=swap">
+  <style>
+    body { margin: 0; font-family: "Patrick Hand", "Comic Sans MS", cursive; color: #333333; background: #FFFFFF; }
+    a { color: #333333; } a:hover { color: #000000; }
+    .col { border: 2px solid #333333; border-radius: 12px; padding: 10px; display: flex; flex-direction: column; gap: 8px; background: #FAFAFA; }
+    .card { border: 2px solid #333333; border-radius: 10px; background: #FFFFFF; padding: 8px 10px; font-size: 14px; line-height: 1.15; display: flex; flex-direction: column; gap: 2px; }
+    .t { font-size: 11px; color: #777777; }
+  </style>
+</helmet>
+
+<div style="width: 720px; height: 480px; box-sizing: border-box; padding: 16px; background: #FFFFFF; display: flex; flex-direction: column; gap: 10px;">
+  <div style="display: flex; justify-content: space-between; align-items: baseline;">
+    <div style="font-size: 22px;">Dirección C · «Tarjetas y aire»</div>
+    <div style="font-size: 14px; color: #777777;">columnas por día · sin rejilla de horas · tipo grande</div>
+  </div>
+  <div style="flex: 1; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 10px; min-height: 0;">
+    <div class="col"><div style="font-size: 18px;">Lunes</div><div class="card"><span class="t">10:00</span>Marta R.</div><div class="card"><span class="t">11:00</span>Tomás B.</div><div class="card" style="border-style: double;"><span class="t">17:00 · fijo</span>Andrés M.</div><div class="card" style="border: 2px dashed #999999; color: #999999;">+ hueco 18:00</div></div>
+    <div class="col" style="background: #F0F0F0;"><div style="font-size: 18px;">Martes</div><div class="card"><span class="t">10:00 · online</span>Sofía A.</div><div class="card"><span class="t">17:00 · A/B</span>Jorge L. / Irene G.</div><div style="font-size: 12px; color: #999999; text-align: center; margin-top: auto;">Lucía no puede este día</div></div>
+    <div class="col" style="border-color: #C5892F;"><div style="font-size: 18px;">Miércoles <span class="t">hoy</span></div><div class="card"><span class="t">12:00 · online</span>Nora S.</div><div class="card" style="border: 2px dashed #999999; color: #999999;"><span class="t">16:00</span>Lucía (origen)</div><div class="card" style="background: #FFE0DE;"><span class="t">18:00 · no puede</span>Hugo F.</div></div>
+    <div class="col"><div style="font-size: 18px;">Jueves</div><div class="card"><span class="t">10:00</span>Elena C.</div><div class="card" style="background: #D9F0EC; border-style: dashed;"><span class="t">17:00</span>soltar aquí</div><div class="card"><span class="t">18:00 · pareja</span>Carla y Dani</div></div>
+    <div class="col"><div style="font-size: 18px;">Viernes</div><div class="card"><span class="t">11:00</span>Pablo V.</div><div class="card"><span class="t">17:00</span>Raúl D.</div></div>
+  </div>
+  <div style="font-size: 14px; color: #555555;">Motivación: muy legible en móvil (cada día es una lista), reordenar es como un tablero. Contra: los huecos libres no se ven de un vistazo y los solapes de duración quedan escondidos.</div>
+</div>
+</x-dc>
+</body>
+</html>
