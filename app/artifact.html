@@ -339,6 +339,21 @@ h3 { font-size: 16px; }
 @media (max-width: 767px) { .gridwrap { display: none; } }
 @media (min-width: 768px) { .daystrip, .daylist, .mobile-tray { display: none; } }
 
+/* ---- barra superior en anchos medios y móvil ---- */
+.topbar { overflow-x: auto; scrollbar-width: none; }
+.topbar::-webkit-scrollbar { display: none; }
+@media (max-width: 1180px) {
+  .topbar { gap: 12px; }
+  .topbar .actions .btn-text { display: none; }
+  .weeknav .title .muted { display: none; }
+}
+@media (max-width: 767px) {
+  .wordmark { font-size: 18px; }
+  .weeknav .title .chip { display: none; }
+  .weeknav { gap: 4px; }
+  .topbar .actions { gap: 4px; }
+}
+
 </style>
 <div id="app" class="app"></div>
 <div id="ghost-layer"></div>
