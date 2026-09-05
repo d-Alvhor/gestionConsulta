@@ -81,7 +81,7 @@
   // ======================================================================
   // Mutaciones, deshacer, avisos
   // ======================================================================
-  function snapshot() { return JSON.stringify({ slots: App.state.slots, weeks: App.state.weeks }); }
+  function snapshot() { const st = App.state; return JSON.stringify({ slots: st.slots, weeks: st.weeks, patients: st.patients, invoices: st.invoices, siguiente: st.settings.siguiente, siguienteRect: st.settings.siguienteRect }); }
   function commit(fn, opts = {}) {
     if (opts.undo) { App.undo.push(snapshot()); if (App.undo.length > 20) App.undo.shift(); }
     fn(App.state);
@@ -94,7 +94,9 @@
     const s = App.undo.pop();
     if (!s) return;
     const snap = JSON.parse(s);
-    App.state.slots = snap.slots; App.state.weeks = snap.weeks;
+    Object.assign(App.state, { slots: snap.slots, weeks: snap.weeks, patients: snap.patients, invoices: snap.invoices });
+    App.state.settings.siguiente = snap.siguiente; App.state.settings.siguienteRect = snap.siguienteRect;
+    App.editing = null; if (App.selectedInvoice && !App.state.invoices.some(i => i.id === App.selectedInvoice)) App.selectedInvoice = null;
     save(); render(); toast('Deshecho');
   }
   let toastTimer = null;
@@ -121,7 +123,10 @@
   const weekParity = () => C.weekParity(App.weekId, App.state.settings.weekAnchor);
   const weekSessions = () => C.weekSessions(App.state, App.weekId);
   const sessionCtx = (ignoreIds = []) => ({ settings: App.state.settings, patients: App.state.patients, sessions: weekSessions(), ignoreIds: new Set(ignoreIds) });
-  const trayPatients = () => App.state.patients.filter(p => p.activo !== false && !App.state.slots.some(s => s.patientId === p.id) && !weekSessions().some(s => s.patientId === p.id));
+  const slotsOf = p => App.state.slots.filter(s => s.patientId === p.id).length;
+  const trayPatients = () => App.state.patients.filter(p => p.activo !== false && !p.enEspera && slotsOf(p) < Math.max(1, p.sesiones || 1) && !(slotsOf(p) === 0 && weekSessions().some(s => s.patientId === p.id)));
+  const PRIO = { urgente: 0, continuidad: 1, normal: 2 };
+  const waitPatients = () => App.state.patients.filter(p => p.activo !== false && p.enEspera).sort((a, b) => (PRIO[a.prioridad] ?? 2) - (PRIO[b.prioridad] ?? 2) || a.alias.localeCompare(b.alias));
   const isoOfDay = d => C.toISODate(C.dateOfDay(App.weekId, d));
   const closedOf = d => C.closedInfo(App.state.settings, isoOfDay(d));
   const isTodayWeek = () => App.weekId === C.isoWeekId(new Date());
@@ -155,7 +160,7 @@
     if (p.modalidad === 'online') icons.push(`<span title="online">${I.video}</span>`);
     if (p.fixed) icons.push(`<span title="hueco fijo">${I.pin}</span>`);
     if (conflict) icons.push(`<span title="${esc(conflict)}">${I.warn}</span>`);
-    const sub = conflict ? conflict : `${p.dur} min · ${p.modalidad}${p.freq.startsWith('quincenal') ? ' · quincenal' : ''}${session && session.moved ? ' · solo esta semana' : ''}`;
+    const sub = conflict ? conflict : (!session && slotsOf(p) > 0) ? `${slotsOf(p) + 1}.ª sesión semanal · arrastra a un hueco` : `${p.dur} min · ${p.modalidad}${p.freq.startsWith('quincenal') ? ' · quincenal' : ''}${session && session.moved ? ' · solo esta semana' : ''}`;
     return `<div class="${cls.join(' ')}" style="${styleOf(p)}" data-sid="${esc(session ? session.id : 'new')}" data-pid="${esc(p.id)}" role="button" tabindex="0" aria-label="${esc(p.alias)}${session ? `, ${C.DAY_NAMES[session.day]} ${C.fmtHour(session.hour)}` : ', sin hueco'}">
       <div class="t"><span class="n">${esc(shown(p))}</span><span class="icons">${icons.join('')}<span class="grip" aria-hidden="true">${I.grip}</span></span></div>
       <small>${esc(sub)}</small>
@@ -202,8 +207,9 @@
   function semanaHtml() {
     const st = App.state.settings;
     const sessions = weekSessions();
-    const active = App.state.patients.filter(p => p.activo !== false);
+    const active = App.state.patients.filter(p => p.activo !== false && !p.enEspera);
     const tray = trayPatients();
+    const wait = waitPatients();
     const hours = C.workingHours(st);
     const freeSlots = st.days.length * hours.length - sessions.reduce((n, s) => n + C.span(st, patient(s.patientId)), 0);
     const conflicts = sessions.filter(conflictOf).length;
@@ -213,6 +219,7 @@
     const drawer = `<aside class="drawer">
       <div class="searchbox">${I.search}<input class="input" id="pat-search" placeholder="Buscar paciente" value="${esc(App.patientSearch)}" aria-label="Buscar paciente"></div>
       ${tray.length ? `<div class="stack"><div class="row" style="justify-content:space-between;padding:0 4px"><span class="label" style="color:var(--ochre)">Sin hueco · ${tray.length}</span><span class="hint">arrastra a la semana</span></div><div class="tray">${tray.map(p => boxHtml(p, null)).join('')}</div></div>` : ''}
+      ${wait.length ? `<div class="stack" style="gap:2px"><div class="row" style="justify-content:space-between;padding:0 4px 4px"><span class="label">En espera · ${wait.length}</span><span class="hint">toca un hueco libre</span></div>${wait.map(p => `<button class="pat ${App.selectedPatient === p.id ? 'sel' : ''}" data-action="select" data-pid="${esc(p.id)}" style="${styleOf(p)}"><span class="dot"></span><span class="name">${esc(p.alias)} <span class="sub">· ${esc(p.prioridad || 'normal')}</span></span>${dayGlyphs(p)}</button>`).join('')}</div>` : ''}
       <div class="stack" style="gap:2px">
         <div class="row" style="justify-content:space-between;padding:0 4px 6px"><span class="label">Pacientes · ${active.length}</span><button class="link" data-action="new-patient" style="font-size:12px">+ Nuevo</button></div>
         ${listed.map(p => `<button class="pat ${App.selectedPatient === p.id ? 'sel' : ''}" data-action="select" data-pid="${esc(p.id)}" style="${styleOf(p)}"><span class="dot"></span><span class="name">${esc(p.alias)}</span>${dayGlyphs(p)}</button>`).join('') || '<div class="hint" style="padding:4px">Aún no hay pacientes.</div>'}
@@ -292,7 +299,7 @@
     const st = App.state.settings;
     const sess = weekSessions().filter(s => s.patientId === p.id);
     const tmpl = App.state.slots.filter(s => s.patientId === p.id);
-    const where = sess.length ? sess.map(s => `${C.DAY_SHORT[s.day]} ${C.fmtHour(s.hour)}${s.moved ? ' (esta semana)' : ''}`).join(', ') : (tmpl.length ? 'No viene esta semana' : 'Sin hueco');
+    const where = p.enEspera ? 'En lista de espera' : sess.length ? sess.map(s => `${C.DAY_SHORT[s.day]} ${C.fmtHour(s.hour)}${s.moved ? ' (esta semana)' : ''}`).join(', ') : (tmpl.length ? 'No viene esta semana' : 'Sin hueco');
     const motivos = st.days.filter(d => (p.avail[d] || {}).motivo).map(d => `<div class="row" style="align-items:flex-start;gap:8px;font-size:13px"><span class="mono" style="color:${(p.avail[d].m === 0 && p.avail[d].t === 0) ? 'var(--danger)' : 'var(--muted)'};flex:none;width:32px">${C.DAY_SHORT[d]}</span><span>${esc(p.avail[d].motivo)}</span></div>`).join('');
     const closedKeys = emittedKeys();
     return `<aside class="sheet" aria-label="Ficha de ${esc(p.alias)}">
@@ -313,6 +320,9 @@
       <div class="field"><span class="label">Mover a…</span><div class="hint">Solo se muestran los huecos donde puede esta semana.</div>${moveListHtml(p, sess[0])}</div>
       <div class="stack" style="margin-top:auto;padding-top:12px;border-top:1px solid var(--line-2)">
         <div class="row" style="justify-content:space-between"><span class="row" style="gap:8px;font-size:13px">${I.pin} Hueco fijo (Recolocar no lo mueve)</span><button class="toggle ${p.fixed ? 'on' : ''}" data-action="toggle-fixed" data-pid="${esc(p.id)}" role="switch" aria-checked="${p.fixed ? 'true' : 'false'}" aria-label="Hueco fijo"></button></div>
+        ${p.enEspera ? `<div class="notice">En lista de espera · prioridad ${esc(p.prioridad || 'normal')}. Elige un hueco en "Mover a…" o toca un hueco libre del cuadrante para darle de alta.</div>` : ''}
+        ${sess.length ? `<button class="btn btn-sm" data-action="copy-reminder" data-pid="${esc(p.id)}">Copiar recordatorio de la cita</button>` : ''}
+        ${!p.enEspera && slotsOf(p) >= Math.max(1, p.sesiones || 1) ? `<button class="btn btn-sm" data-action="add-session" data-pid="${esc(p.id)}">Añadir otra sesión semanal</button>` : ''}
         ${sess.length ? `<button class="btn btn-sm" data-action="skip-week" data-sid="${esc(sess[0].id)}" ${closedKeys.has(`${App.weekId}:${sess[0].id}`) ? 'disabled title="Esta sesión ya está en una factura emitida"' : ''}>No viene esta semana</button>` : ''}
         ${tmpl.length ? `<button class="btn btn-sm" data-action="remove-slot" data-pid="${esc(p.id)}">Quitar del cuadrante (a "sin hueco")</button>` : ''}
       </div>
@@ -521,6 +531,8 @@
     const other = swapSid ? weekSessions().find(s => s.id === swapSid) : null;
     const label = `${p.alias} → ${C.DAY_NAMES[day]} ${C.fmtHour(hour)}${other ? ` (intercambio con ${patient(other.patientId).alias})` : ''}`;
     commit(st => {
+      const pp = st.patients.find(x => x.id === pid);
+      if (pp && pp.enEspera) { pp.enEspera = false; pp.activo = true; }
       const wk = st.weeks[App.weekId] || (st.weeks[App.weekId] = { moves: {}, sessions: {} });
       wk.moves = wk.moves || {};
       if (scope === 'week') {
@@ -538,6 +550,64 @@
         }
       }
     }, { undo: true, toast: label, announce: label });
+  }
+
+  // ---------------------------------------------------------------- Mover con teclado
+  const Kb = { active: null };
+  const cellEl = (day, hour) => $(`[data-cell][data-day="${day}"][data-hour="${hour}"]`);
+  function kbStart(box) {
+    const sid = box.dataset.sid, pid = box.dataset.pid; const p = patient(pid);
+    if (!p || p.fixed) { if (p && p.fixed) toast('Hueco fijo: desactívalo en la ficha para moverlo.'); return; }
+    const session = sid === 'new' ? null : weekSessions().find(s => s.id === sid);
+    const list = C.validSlots(sessionCtx(session ? [session.id] : []), pid, 'AB').filter(v => v.ok && !(session && v.day === session.day && v.hour === session.hour));
+    if (!list.length) { toast('No hay ningún hueco libre compatible esta semana.'); return; }
+    let idx = 0;
+    if (session) { const i = list.findIndex(v => C.DAYS.indexOf(v.day) > C.DAYS.indexOf(session.day) || (v.day === session.day && v.hour > session.hour)); idx = i >= 0 ? i : 0; }
+    Kb.active = { sid, pid, list, idx };
+    for (const v of list) { const c = cellEl(v.day, v.hour); if (c) { c.classList.add('ok'); if (v.pref) c.classList.add('pref'); } }
+    kbHighlight();
+    toast('Flechas para elegir hueco · Enter para soltar · Esc para cancelar', null, { sticky: true });
+  }
+  function kbHighlight() {
+    const k = Kb.active; $$('.cell.kb').forEach(c => c.classList.remove('kb'));
+    const v = k.list[k.idx]; const c = cellEl(v.day, v.hour);
+    if (c) { c.classList.add('kb'); c.scrollIntoView({ block: 'nearest', inline: 'nearest' }); }
+    $('#live').textContent = `${C.DAY_NAMES[v.day]} ${C.fmtHour(v.hour)}${v.pref ? ', hueco preferido' : ''}`;
+  }
+  function kbStep(dir, sameHour) {
+    const k = Kb.active; const cur = k.list[k.idx];
+    if (sameHour) {
+      const di = C.DAYS.indexOf(cur.day);
+      for (let d = di + dir; d >= 0 && d < 7; d += dir) { const j = k.list.findIndex(v => v.day === C.DAYS[d] && v.hour === cur.hour); if (j >= 0) { k.idx = j; kbHighlight(); return; } }
+    }
+    k.idx = (k.idx + dir + k.list.length) % k.list.length; kbHighlight();
+  }
+  function kbEnd(drop) {
+    const k = Kb.active; if (!k) return; Kb.active = null;
+    $$('.cell.ok, .cell.kb').forEach(c => c.classList.remove('ok', 'pref', 'kb'));
+    $('#toast').hidden = true;
+    if (!drop) return;
+    const v = k.list[k.idx]; const c = cellEl(v.day, v.hour);
+    const r = c ? c.getBoundingClientRect() : { left: innerWidth / 2, top: innerHeight / 2, width: 0, height: 0 };
+    askScope(r.left + r.width / 2, r.top + r.height / 2, scope => performMove(k.sid, k.pid, v.day, v.hour, null, scope));
+  }
+
+  // ---------------------------------------------------------------- Hueco libre → sugerir de la lista de espera
+  function suggestForCell(cell, e) {
+    const wait = waitPatients();
+    if (!wait.length || cell.querySelector('.box') || cell.dataset.covered) return;
+    const day = cell.dataset.day, hour = Number(cell.dataset.hour);
+    const cands = C.suggestForSlot(App.state, weekSessions(), day, hour);
+    if (!cands.length) { toast(`Nadie de la lista de espera puede el ${C.DAY_NAMES[day].toLowerCase()} a las ${C.fmtHour(hour)}.`); return; }
+    closePopover();
+    const pop = document.createElement('div'); pop.className = 'popover';
+    pop.innerHTML = `<div class="label" style="padding:4px 6px">${C.DAY_NAMES[day]} ${C.fmtHour(hour)} · en espera</div>` + cands.slice(0, 6).map(c => `<button class="btn btn-sm" data-wpid="${esc(c.patient.id)}" style="justify-content:space-between;${styleOf(c.patient)}"><span class="row"><span class="dot"></span>${esc(c.patient.alias)}</span><span class="hint">${esc(c.patient.prioridad || 'normal')}${c.pref ? ' · prefiere' : ''}</span></button>`).join('') + `<button class="btn btn-sm btn-ghost" data-wpid="">Cancelar</button>`;
+    document.body.appendChild(pop);
+    const w = pop.offsetWidth, h = pop.offsetHeight;
+    pop.style.left = Math.max(8, Math.min(window.innerWidth - w - 8, e.clientX - w / 2)) + 'px';
+    pop.style.top = Math.max(8, Math.min(window.innerHeight - h - 8, e.clientY + 8)) + 'px';
+    pop.addEventListener('click', ev => { const b = ev.target.closest('[data-wpid]'); if (!b) return; const pid = b.dataset.wpid; closePopover(); if (pid) performMove('new', pid, day, hour, null, 'all'); });
+    setTimeout(() => document.addEventListener('pointerdown', ev => { if (!pop.contains(ev.target)) closePopover(); }, { once: true }), 0);
   }
 
   // ======================================================================
@@ -641,18 +711,19 @@
   function pacientesHtml() {
     const all = App.state.patients.slice().sort((a, b) => a.alias.localeCompare(b.alias));
     const q = App.patientSearch.trim().toLowerCase();
-    const list = all.filter(p => (App.patientFilter === 'todos' || (App.patientFilter === 'activos') === (p.activo !== false)) && (!q || (p.alias + ' ' + p.nombre).toLowerCase().includes(q)));
-    const slotOf = p => { const s = App.state.slots.filter(x => x.patientId === p.id); return s.length ? s.map(x => `${C.DAY_SHORT[x.day]} ${C.fmtHour(x.hour)}`).join(', ') : '—'; };
+    const matchF = (p, f) => f === 'todos' ? true : f === 'espera' ? (p.enEspera && p.activo !== false) : f === 'inactivos' ? p.activo === false : (p.activo !== false && !p.enEspera);
+    const list = all.filter(p => matchF(p, App.patientFilter) && (!q || (p.alias + ' ' + p.nombre).toLowerCase().includes(q)));
+    const slotOf = p => { if (p.enEspera) return 'en espera'; const s = App.state.slots.filter(x => x.patientId === p.id); return s.length ? s.map(x => `${C.DAY_SHORT[x.day]} ${C.fmtHour(x.hour)}`).join(', ') : '—'; };
     const side = `<aside class="page-side">
       <div class="searchbox">${I.search}<input class="input" id="pat-search" placeholder="Buscar" value="${esc(App.patientSearch)}" aria-label="Buscar paciente"></div>
-      <div class="stack" style="gap:2px">${['activos', 'todos', 'inactivos'].map(f => `<button class="fil ${App.patientFilter === f ? 'on' : ''}" data-action="pat-filter" data-f="${f}">${f[0].toUpperCase() + f.slice(1)} · ${all.filter(p => f === 'todos' || (f === 'activos') === (p.activo !== false)).length}</button>`).join('')}</div>
+      <div class="stack" style="gap:2px">${['activos', 'espera', 'todos', 'inactivos'].map(f => `<button class="fil ${App.patientFilter === f ? 'on' : ''}" data-action="pat-filter" data-f="${f}">${{ activos: 'Activos', espera: 'En espera', todos: 'Todos', inactivos: 'De baja' }[f]} · ${all.filter(p => matchF(p, f)).length}</button>`).join('')}</div>
       <button class="btn btn-primary" data-action="new-patient">${I.plus}Nuevo paciente</button>
       <div class="hint">Usa iniciales o un alias en la rejilla; el nombre fiscal solo hace falta para la factura.</div>
     </aside>`;
     const main = App.editing ? patientFormHtml() : `<div class="row wrap" style="justify-content:space-between;margin-bottom:12px"><h2>Pacientes</h2><div class="row mobile-only"><button class="btn btn-sm btn-primary" data-action="new-patient">${I.plus}Nuevo</button></div></div>
-      <div class="row mobile-only" style="margin-bottom:10px"><div class="seg seg-sm grow">${['activos', 'todos', 'inactivos'].map(f => `<button class="${App.patientFilter === f ? 'on' : ''}" data-action="pat-filter" data-f="${f}">${f[0].toUpperCase() + f.slice(1)}</button>`).join('')}</div></div>
+      <div class="row mobile-only" style="margin-bottom:10px"><div class="seg seg-sm grow">${['activos', 'espera', 'todos', 'inactivos'].map(f => `<button class="${App.patientFilter === f ? 'on' : ''}" data-action="pat-filter" data-f="${f}">${{ activos: 'Activos', espera: 'Espera', todos: 'Todos', inactivos: 'Baja' }[f]}</button>`).join('')}</div></div>
       <div class="card"><table class="table"><thead><tr><th>Paciente</th><th>Frecuencia</th><th>Sesión</th><th>Hueco</th><th>Disponibilidad</th><th class="r">Tarifa</th></tr></thead><tbody>
-      ${list.map(p => `<tr data-action="edit-patient" data-pid="${esc(p.id)}" style="${styleOf(p)}"><td><span class="row"><span class="dot"></span><strong style="font-weight:500">${esc(p.alias)}</strong>${p.activo === false ? '<span class="chip">baja</span>' : ''}${p.fixed ? `<span title="hueco fijo">${I.pin}</span>` : ''}</span></td><td>${freqLabel(p.freq)}</td><td>${p.dur} min · ${p.modalidad}</td><td class="mono">${esc(slotOf(p))}</td><td>${dayGlyphs(p)}</td><td class="r mono">${C.fmtEuro(p.tarifa)}</td></tr>`).join('') || `<tr><td colspan="6" class="hint">No hay pacientes en este filtro.</td></tr>`}
+      ${list.map(p => `<tr data-action="edit-patient" data-pid="${esc(p.id)}" style="${styleOf(p)}"><td><span class="row"><span class="dot"></span><strong style="font-weight:500">${esc(p.alias)}</strong>${p.activo === false ? '<span class="chip">baja</span>' : ''}${p.enEspera ? `<span class="chip chip-ochre">espera · ${esc(p.prioridad || 'normal')}</span>` : ''}${p.fixed ? `<span title="hueco fijo">${I.pin}</span>` : ''}${(p.sesiones || 1) > 1 ? `<span class="chip">${p.sesiones}/sem</span>` : ''}</span></td><td>${freqLabel(p.freq)}</td><td>${p.dur} min · ${p.modalidad}</td><td class="mono">${esc(slotOf(p))}</td><td>${dayGlyphs(p)}</td><td class="r mono">${C.fmtEuro(p.tarifa)}</td></tr>`).join('') || `<tr><td colspan="6" class="hint">No hay pacientes en este filtro.</td></tr>`}
       </tbody></table></div>`;
     return `<div class="page">${side}<section class="page-main">${main}</section></div>`;
   }
@@ -684,6 +755,11 @@
         <div class="field"><span class="label">Duración</span>${seg('dur', [[50, '50 min'], [60, '60 min'], [90, '90 min']])}</div>
         <div class="field"><span class="label">Modalidad</span>${seg('modalidad', [['presencial', 'Presencial'], ['online', 'Online']])}</div>
         <label class="field"><span class="label">Tarifa por sesión (€)</span><input class="input mono" type="number" min="0" step="0.5" data-field="tarifa" value="${p.tarifa}"></label>
+        <div class="field"><span class="label">Sesiones por semana</span>${seg('sesiones', [[1, '1'], [2, '2'], [3, '3']])}</div>
+      </div>
+      <div class="section">
+        <div class="row" style="justify-content:space-between"><div><div style="font-weight:500">En lista de espera</div><div class="hint">No entra en el cuadrante. Al tocar un hueco libre te lo sugerirá por prioridad.</div></div><button type="button" class="toggle ${p.enEspera ? 'on' : ''}" data-action="f-toggle" data-field="enEspera" role="switch" aria-checked="${!!p.enEspera}"></button></div>
+        ${p.enEspera ? `<div class="field"><span class="label">Prioridad</span>${seg('prioridad', [['urgente', 'Urgente'], ['continuidad', 'Continuidad'], ['normal', 'Normal']])}</div>` : ''}
       </div>
       <div class="section">
         <div class="stitle"><span class="label">Disponibilidad · toca una casilla para alternar: no → puede → mejor</span></div>
@@ -736,8 +812,8 @@
     commit(st => {
       const i = st.patients.findIndex(x => x.id === p.id);
       if (i >= 0) st.patients[i] = p; else st.patients.push(p);
-      if (p.activo === false) st.slots = st.slots.filter(s => s.patientId !== p.id);
-    }, { toast: isNew ? `${p.alias} añadido. Arrástralo a un hueco o pulsa Recolocar.` : 'Ficha guardada' });
+      if (p.activo === false || p.enEspera) st.slots = st.slots.filter(s => s.patientId !== p.id);
+    }, { undo: true, toast: isNew ? `${p.alias} añadido. Arrástralo a un hueco o pulsa Recolocar.` : 'Ficha guardada' });
     App.editing = null;
     if (isNew) { App.view = 'semana'; App.selectedPatient = p.id; }
     render();
@@ -765,7 +841,7 @@
       <div class="field"><span class="label">Mes</span><div class="row" style="justify-content:space-between;height:36px;padding:0 6px;border:1px solid var(--line);border-radius:8px;background:var(--card)"><button class="btn btn-ghost btn-icon btn-sm" data-action="inv-month" data-m="${shift(-1)}" aria-label="Mes anterior">${I.prev}</button><span style="font-weight:500">${esc(C.periodoLabel(month))}</span><button class="btn btn-ghost btn-icon btn-sm" data-action="inv-month" data-m="${shift(1)}" aria-label="Mes siguiente">${I.next}</button></div></div>
       <div class="stack" style="gap:2px">${[['todas', 'Todas'], ['borradores', 'Borradores'], ['emitida', 'Emitidas'], ['pagada', 'Pagadas']].map(([k, l]) => `<button class="fil ${App.invoiceFilter === k ? 'on' : ''}" data-action="inv-filter" data-f="${k}">${l} · ${k === 'todas' ? drafts.length + inMonth.length : k === 'borradores' ? drafts.length : inMonth.filter(i => i.estado === k).length}</button>`).join('')}</div>
       <div class="notice ${pending.length ? 'notice-warn' : ''}"><span class="label" style="color:${pending.length ? 'var(--ochre-ink)' : 'inherit'}">Pendiente de facturar</span><div class="mono" style="font-size:22px;font-weight:600;margin:4px 0">${C.fmtEuro(pendingTotal)}</div><div class="hint" style="color:inherit">${pending.length} sesiones con OK de ${pendingPatients} pacientes, aún sin borrador.</div>${pending.length ? `<button class="btn btn-primary" style="margin-top:10px;width:100%" data-action="inv-drafts">${I.plus}Generar borradores</button>` : ''}</div>
-      <div class="notice"><span class="label">${esc(C.periodoLabel(month))}</span><div class="row" style="justify-content:space-between;font-size:13px;margin-top:6px"><span class="muted">Emitido</span><span class="mono">${C.fmtEuro(emitted)}</span></div><div class="row" style="justify-content:space-between;font-size:13px"><span class="muted">Cobrado</span><span class="mono">${C.fmtEuro(paid)}</span></div><div class="row" style="justify-content:space-between;font-size:13px"><span class="muted">Siguiente nº</span><span class="mono">${esc(C.nextNumero(st.settings))}</span></div><button class="btn btn-sm" style="margin-top:10px;width:100%" data-action="inv-csv">${I.download}CSV del mes (gestoría)</button></div>
+      <div class="notice"><span class="label">${esc(C.periodoLabel(month))}</span><div class="row" style="justify-content:space-between;font-size:13px;margin-top:6px"><span class="muted">Emitido</span><span class="mono">${C.fmtEuro(emitted)}</span></div><div class="row" style="justify-content:space-between;font-size:13px"><span class="muted">Cobrado</span><span class="mono">${C.fmtEuro(paid)}</span></div><div class="row" style="justify-content:space-between;font-size:13px"><span class="muted">Siguiente nº</span><span class="mono">${esc(C.nextNumero(st.settings))}</span></div><button class="btn btn-sm" style="margin-top:10px;width:100%" data-action="inv-csv">${I.download}CSV del mes (gestoría)</button><button class="btn btn-sm" style="margin-top:6px;width:100%" data-action="inv-aeat" title="Columnas del libro registro de facturas expedidas">${I.download}CSV libro AEAT (${esc(month.slice(0, 4))})</button></div>
       <div class="hint">Las facturas mensuales a particulares son recapitulativas: emítelas antes de que acabe el mes de las sesiones. Desde el 1 de julio de 2027 los autónomos deben emitir con un sistema Verifactu (o la app gratuita de la AEAT); hasta entonces puedes imprimir estas y llevar el CSV a la gestoría.</div>
     </aside>`;
     const main = `<div class="row wrap" style="justify-content:space-between;margin-bottom:12px"><h2>Facturas</h2><div class="row mobile-only">${pending.length ? `<button class="btn btn-sm btn-primary" data-action="inv-drafts">${I.plus}Borradores (${pending.length})</button>` : ''}<button class="btn btn-sm btn-icon" data-action="inv-month" data-m="${shift(-1)}">${I.prev}</button><span style="font-size:13px">${esc(C.periodoLabel(month))}</span><button class="btn btn-sm btn-icon" data-action="inv-month" data-m="${shift(1)}">${I.next}</button></div></div>
@@ -785,9 +861,9 @@
       ${inv.aviso ? `<div class="notice notice-warn">${esc(inv.aviso)}</div>` : ''}
       ${inv.rectificaDe ? `<div class="notice">Rectificativa de <span class="mono">${esc(inv.rectificaNumero)}</span> · ${esc(inv.causa)}</div>` : ''}
       <div style="overflow:auto">${invoiceHtml(inv)}</div>
-      ${draft ? `<div class="hint">Puedes ajustar los importes de las líneas antes de emitir.</div><div class="stack">${inv.lineas.map((l, i) => `<div class="row"><span class="mono hint" style="width:80px">${C.fmtDate(C.fromISODate(l.fecha))}</span><input class="input input-sm grow" data-action="inv-line-concepto" data-i="${i}" value="${esc(l.concepto)}"><input class="input input-sm mono" type="number" step="0.5" style="width:90px;text-align:right" data-action="inv-line-importe" data-i="${i}" value="${l.importe}"></div>`).join('')}</div>` : ''}
+      ${draft ? `<div class="hint">Puedes ajustar los importes de las líneas antes de emitir.</div><div class="stack">${inv.lineas.map((l, i) => `<div class="row"><span class="mono hint" style="width:80px">${C.fmtDate(C.fromISODate(l.fecha))}</span><input class="input input-sm grow" data-action="inv-line-concepto" data-i="${i}" value="${esc(l.concepto)}"><input class="input input-sm mono" type="number" step="0.5" style="width:90px;text-align:right" data-action="inv-line-importe" data-i="${i}" value="${l.importe}">${inv.lineas.length > 1 ? `<button class="btn btn-sm btn-icon" data-action="inv-line-del" data-i="${i}" aria-label="Quitar línea">${I.close}</button>` : ''}</div>`).join('')}</div>` : ''}
       <div class="form" style="gap:8px"><div class="cols-2">
-        ${draft ? `<button class="btn btn-primary" data-action="inv-issue">${I.check}Emitir</button><button class="btn btn-danger" data-action="inv-delete">Eliminar borrador</button>` : `<button class="btn" data-action="inv-print">${I.print}Imprimir / PDF</button><button class="btn" data-action="inv-download">${I.download}Descargar HTML</button>${inv.estado === 'emitida' ? `<button class="btn" data-action="inv-paid" data-v="pagada">Marcar pagada</button>` : inv.estado === 'pagada' ? `<button class="btn" data-action="inv-paid" data-v="emitida">Desmarcar pagada</button>` : ''}${!inv.rectificaDe && !hasRect && inv.estado !== 'anulada' ? `<button class="btn" data-action="inv-rectify">Rectificativa…</button>` : ''}`}
+        ${draft ? `<button class="btn btn-primary" data-action="inv-issue">${I.check}Emitir</button><button class="btn btn-danger" data-action="inv-delete">Eliminar borrador</button><button class="btn" data-action="inv-pdf">${I.download}Ver borrador en PDF</button>` : `<button class="btn btn-primary" data-action="inv-pdf">${I.download}Descargar PDF</button><button class="btn" data-action="inv-print">${I.print}Imprimir</button><button class="btn" data-action="inv-download">${I.download}Descargar HTML</button>${inv.estado === 'emitida' ? `<button class="btn" data-action="inv-paid" data-v="pagada">Marcar pagada</button>` : inv.estado === 'pagada' ? `<button class="btn" data-action="inv-paid" data-v="emitida">Desmarcar pagada</button>` : ''}${!inv.rectificaDe && !hasRect && inv.estado !== 'anulada' ? `<button class="btn" data-action="inv-rectify">Rectificativa…</button>` : ''}`}
       </div></div>
       <div class="hint" style="margin-top:auto;padding-top:10px;border-top:1px solid var(--line-2)">${draft ? 'Al emitir se asigna el número correlativo y se congelan los datos: después ya no se puede editar ni borrar, solo rectificar.' : 'Las emitidas no se borran ni se renumeran. Si hay un error, emite una rectificativa.'}</div>
     </aside>`;
@@ -841,6 +917,7 @@
   function ajustesHtml() {
     if (!App.settingsDraft) App.settingsDraft = JSON.parse(JSON.stringify(App.state.settings));
     const s = App.settingsDraft;
+    if (s.autoHolidays === undefined) s.autoHolidays = true;
     const hourOpts = (sel, from = 6, to = 23) => Array.from({ length: to - from + 1 }, (_, i) => from + i).map(h => `<option value="${h}" ${h === sel ? 'selected' : ''}>${C.fmtHour(h)}</option>`).join('');
     const br = s.hours.breaks[0] || null;
     const dayChecks = C.DAYS.map(d => `<label class="check"><input type="checkbox" data-sday="${d}" ${s.days.includes(d) ? 'checked' : ''}>${C.DAY_NAMES[d]}</label>`).join('');
@@ -869,7 +946,7 @@
           <div class="field"><span class="label">Modo discreto (iniciales en el cuadrante)</span><div class="row" style="height:38px"><button type="button" class="toggle ${s.discreet ? 'on' : ''}" data-action="s-toggle" data-key="discreet" role="switch" aria-checked="${!!s.discreet}"></button><span class="hint">Útil si alguien puede ver tu pantalla.</span></div></div>
         </div>
         <div class="field"><span class="label">Despacho disponible para sesiones presenciales</span><div class="hint">Desmarca las franjas en las que solo puedes atender online (p. ej. si alquilas despacho por horas).</div><div class="stack" style="gap:6px">${office}</div></div>
-        <div class="field"><span class="label">Festivos y cierres</span>${closed || '<div class="hint">Ninguno.</div>'}<div class="row"><input class="input input-sm mono" type="date" id="closed-date" style="width:170px"><input class="input input-sm grow" id="closed-motivo" placeholder="Motivo (festivo, vacaciones, congreso…)"><button type="button" class="btn btn-sm" data-action="closed-add">Añadir</button></div></div>
+        <div class="field"><span class="label">Festivos y cierres</span><div class="row" style="justify-content:space-between;gap:12px"><span class="hint">Festivos nacionales automáticos${s.autoHolidays !== false ? ` (${new Date().getFullYear()}: ${C.spanishHolidays(new Date().getFullYear()).map(h => h.date.slice(8) + '/' + h.date.slice(5, 7)).join(', ')})` : ''}. Los autonómicos y locales, añádelos abajo.</span><button type="button" class="toggle ${s.autoHolidays !== false ? 'on' : ''}" data-action="s-toggle" data-key="autoHolidays" role="switch" aria-checked="${s.autoHolidays !== false}"></button></div>${closed || '<div class="hint">Ningún cierre manual.</div>'}<div class="row"><input class="input input-sm mono" type="date" id="closed-date" style="width:170px"><input class="input input-sm grow" id="closed-motivo" placeholder="Motivo (festivo, vacaciones, congreso…)"><button type="button" class="btn btn-sm" data-action="closed-add">Añadir</button></div></div>
       </div>
       <div class="section"><div class="stitle"><h3>Facturación</h3><span class="hint">Estos datos salen en cada factura que emitas a partir de ahora.</span></div>
         <div class="cols-2">
@@ -900,13 +977,13 @@
     <div class="form" style="margin-top:24px">
       <div class="section"><div class="stitle"><h3>Tus datos y copias de seguridad</h3></div>
         <div class="notice">Todo se guarda <strong>solo en este navegador</strong>${App.encrypted ? ', cifrado con tu contraseña' : ''}. Nada sale a ningún servidor. ${persisted}<br>Exporta una copia cada semana y guárdala donde tú controles (tu disco, tu nube). Para usar la app en otro dispositivo, abre allí la misma dirección e importa la copia. No edites en dos dispositivos a la vez: se queda la última versión importada.${s.lastExport ? `<br>Última copia exportada: <span class="mono">${esc(s.lastExport)}</span>.` : '<br><strong>Aún no has exportado ninguna copia.</strong>'}</div>
-        <div class="row wrap"><button class="btn btn-primary" data-action="export">${I.download}Exportar copia${App.encrypted ? ' (cifrada)' : ''}</button><button class="btn" data-action="import">Importar copia…</button>${App.encrypted ? `<button class="btn" data-action="export-plain">Exportar sin cifrar</button>` : ''}</div>
+        <div class="row wrap"><button class="btn btn-primary" data-action="export">${I.download}Exportar copia${App.encrypted ? ' (cifrada)' : ''}</button><button class="btn" data-action="import">Importar copia…</button>${App.encrypted ? `<button class="btn" data-action="export-plain">Exportar sin cifrar</button>` : ''}<button class="btn" data-action="export-ics" title="Próximas 8 semanas, sin nombres">Calendario .ics (sin nombres)</button></div>
         <div class="row wrap" style="gap:12px"><div><div style="font-weight:500">${I.lock} Contraseña</div><div class="hint">${App.encrypted ? 'Activada: los datos se guardan cifrados (AES-GCM) y la app se bloquea sola.' : 'Recomendada: la agenda contiene datos de salud. Si la olvidas, no hay recuperación.'}</div></div><div class="row" style="margin-left:auto">${App.encrypted ? `<button class="btn btn-sm" data-action="pw-change">Cambiar</button><button class="btn btn-sm" data-action="pw-remove">Quitar</button>` : `<button class="btn btn-sm btn-primary" data-action="pw-set">Activar contraseña</button>`}</div></div>
         ${App.encrypted ? `<label class="field" style="max-width:260px"><span class="label">Bloquear tras (minutos sin usar)</span><input class="input mono" type="number" min="1" max="120" id="lock-min" value="${s.lockMin}" data-action="lock-min"></label>` : ''}
         <div class="hint">Recuerda: conserva las facturas al menos 4 años (prescripción fiscal) y la información asistencial de cada paciente al menos 5 años desde el alta (Ley 41/2002). Da de baja a los pacientes en vez de eliminarlos.</div>
         <div class="row wrap"><button class="btn btn-sm" data-action="demo-load">Cargar datos de ejemplo</button><button class="btn btn-sm btn-danger" data-action="wipe">Borrar todos los datos de este navegador</button></div>
       </div>
-      <div class="section"><div class="stitle"><h3>Acerca de</h3></div><div class="hint">Cuadrante de consulta · un solo fichero HTML, sin servidor. Arrastra desde el asa (⋮⋮) en el móvil; en el ordenador, desde cualquier parte de la caja. Ctrl/Cmd+Z deshace el último cambio del cuadrante.</div></div>
+      <div class="section"><div class="stitle"><h3>Acerca de</h3></div><div class="hint">Cuadrante de consulta · un solo fichero HTML, sin servidor. Arrastra desde el asa (⋮⋮) en el móvil; en el ordenador, desde cualquier parte de la caja o con teclado: Tab hasta la caja, Espacio la coge, flechas eligen hueco, Enter suelta. Ctrl/Cmd+Z deshace el último cambio.</div></div>
     </div></section></div>`;
   }
 
@@ -1044,6 +1121,9 @@
     const hugo = mk('Hugo F.', { color: 'rosa' }); no(hugo, 'X', 'cuida a su madre'); pref(hugo, 'J', 't');
     const nerea = mk('Nerea O.', { color: 'menta' }); for (const d of ['L', 'M', 'X', 'J', 'V']) nerea.avail[d].m = 0; no(nerea, 'M', 'solo tardes; martes clase'); no(nerea, 'V');
     const ivan = mk('Iván T.', { color: 'pizarra', freq: 'quincenalB', modalidad: 'online' }); no(ivan, 'J'); no(ivan, 'V');
+    const paula = mk('Paula N.', { color: 'cielo', enEspera: true, prioridad: 'urgente' }); for (const d of ['L', 'M', 'X', 'J', 'V']) paula.avail[d].m = 0; paula.avail.M.motivo = 'solo tardes; llamó el 2 de septiembre';
+    const oscar = mk('Óscar R.', { color: 'melocoton', enEspera: true, prioridad: 'normal', modalidad: 'online' });
+    void paula; void oscar;
     const slot = (p, day, hour) => st.slots.push({ id: C.uid('s'), patientId: p.id, day, hour });
     slot(marta, 'L', 10); slot(tomas, 'L', 11); slot(andres, 'L', 17);
     slot(sofia, 'M', 10); slot(jorge, 'M', 17); slot(irene, 'M', 17);
@@ -1069,6 +1149,8 @@
   function openSheet(pid) { App.selectedPatient = pid || null; render(); }
 
   document.addEventListener('click', async e => {
+    const cellHit = e.target.closest('[data-cell]');
+    if (cellHit && App.view === 'semana' && !e.target.closest('.box') && !e.target.closest('[data-action]') && !Drag.active && !Kb.active) { suggestForCell(cellHit, e); return; }
     const el = e.target.closest('[data-action]');
     if (!el) return;
     if (el.tagName === 'INPUT' && el.type !== 'checkbox' && el.type !== 'button') return;
@@ -1084,7 +1166,7 @@
       case 'edit-patient': startEdit(el.dataset.pid); break;
       case 'cancel-edit': App.editing = null; render(); break;
       case 'pat-filter': App.patientFilter = el.dataset.f; render(); break;
-      case 'f-seg': { const f = el.dataset.field; readPatientForm(); App.editing[f] = f === 'dur' ? Number(el.dataset.value) : el.dataset.value; render(); break; }
+      case 'f-seg': { const f = el.dataset.field; readPatientForm(); App.editing[f] = (f === 'dur' || f === 'sesiones') ? Number(el.dataset.value) : el.dataset.value; render(); break; }
       case 'f-bseg': { readPatientForm(); App.editing.billing[el.dataset.field] = el.dataset.field === 'retencion' ? Number(el.dataset.value) : el.dataset.value; render(); break; }
       case 'f-color': readPatientForm(); App.editing.color = el.dataset.color; render(); break;
       case 'f-toggle': readPatientForm(); App.editing[el.dataset.field] = !App.editing[el.dataset.field]; if (el.dataset.field === 'activo' && App.editing.activo === undefined) App.editing.activo = false; render(); break;
@@ -1094,7 +1176,7 @@
         const hasInv = App.state.invoices.some(i => i.patientId === p.id);
         if (hasInv) { toast('Tiene facturas: dale de baja en lugar de eliminarlo.', null, { error: true }); break; }
         if (!(await confirmDialog({ title: `Eliminar a ${p.alias}`, text: 'Se borra la ficha y sus huecos. Si tiene historial que debas conservar, mejor dale de baja.', ok: 'Eliminar', danger: true }))) break;
-        commit(st => { st.patients = st.patients.filter(x => x.id !== p.id); st.slots = st.slots.filter(s => s.patientId !== p.id); }, { toast: 'Paciente eliminado' });
+        commit(st => { st.patients = st.patients.filter(x => x.id !== p.id); st.slots = st.slots.filter(s => s.patientId !== p.id); }, { undo: true, toast: 'Paciente eliminado' });
         App.editing = null; render(); break;
       }
       case 'toggle-fixed': commit(st => { const p = st.patients.find(x => x.id === el.dataset.pid); p.fixed = !p.fixed; }, {}); break;
@@ -1113,25 +1195,31 @@
       case 'inv-month': App.invoiceMonth = el.dataset.m; App.selectedInvoice = null; render(); break;
       case 'inv-filter': App.invoiceFilter = el.dataset.f; render(); break;
       case 'inv-select': App.selectedInvoice = el.dataset.id || null; render(); break;
-      case 'inv-drafts': { const drafts = C.generateDrafts(App.state); if (!drafts.length) { toast('No hay sesiones pendientes de facturar.'); break; } commit(st => { st.invoices.push(...drafts); }, { toast: `${drafts.length} borradores generados` }); App.invoiceFilter = 'borradores'; App.selectedInvoice = drafts[0].id; render(); break; }
+      case 'inv-drafts': { const drafts = C.generateDrafts(App.state); if (!drafts.length) { toast('No hay sesiones pendientes de facturar.'); break; } commit(st => { st.invoices.push(...drafts); }, { undo: true, toast: `${drafts.length} borradores generados` }); App.invoiceFilter = 'borradores'; App.selectedInvoice = drafts[0].id; render(); break; }
       case 'inv-issue': {
         const inv = App.state.invoices.find(i => i.id === App.selectedInvoice);
         const num = C.nextNumero(App.state.settings, !!inv.rectificaDe);
         if (!App.state.settings.emisor.nombre || !App.state.settings.emisor.nif) { toast('Rellena tus datos fiscales en Ajustes antes de emitir.', null, { error: true }); break; }
         if (!(await confirmDialog({ title: `Emitir como ${num}`, text: `Se asigna el número <span class="mono">${esc(num)}</span> con fecha de hoy y se congelan los datos. Después no se podrá editar ni borrar, solo rectificar.`, ok: 'Emitir' }))) break;
-        try { commit(st => C.issueInvoice(st, inv.id), { toast: `Factura ${num} emitida` }); } catch (err) { toast(err.message, null, { error: true }); }
+        try { commit(st => C.issueInvoice(st, inv.id), { toast: `Factura ${num} emitida` }); App.undo = []; } catch (err) { toast(err.message, null, { error: true }); }
         break;
       }
-      case 'inv-delete': { if (!(await confirmDialog({ title: 'Eliminar el borrador', text: 'Sus sesiones vuelven a "pendiente de facturar".', ok: 'Eliminar', danger: true }))) break; const id = App.selectedInvoice; App.selectedInvoice = null; commit(st => { st.invoices = st.invoices.filter(i => i.id !== id); }, { toast: 'Borrador eliminado' }); break; }
+      case 'inv-delete': { if (!(await confirmDialog({ title: 'Eliminar el borrador', text: 'Sus sesiones vuelven a "pendiente de facturar".', ok: 'Eliminar', danger: true }))) break; const id = App.selectedInvoice; App.selectedInvoice = null; commit(st => { st.invoices = st.invoices.filter(i => i.id !== id); }, { undo: true, toast: 'Borrador eliminado' }); break; }
       case 'inv-paid': { const v = el.dataset.v; commit(st => { const inv = st.invoices.find(i => i.id === App.selectedInvoice); inv.estado = v; if (v === 'pagada') inv.pagadaEl = C.toISODate(new Date()); else delete inv.pagadaEl; }, { toast: v === 'pagada' ? 'Marcada como pagada' : 'Desmarcada' }); break; }
-      case 'inv-rectify': { const causa = await promptDialog({ title: 'Factura rectificativa', text: 'Se crea un borrador que anula la factura completa (importes en negativo) en la serie de rectificativas. Indica la causa.', label: 'Causa', placeholder: 'Error en el importe / sesión no realizada…', ok: 'Crear borrador' }); if (causa === null) break; try { const d = C.rectifyDraft(App.state, App.selectedInvoice, causa.trim() || undefined); commit(st => { st.invoices.push(d); }, { toast: 'Borrador de rectificativa creado' }); App.invoiceFilter = 'borradores'; App.selectedInvoice = d.id; render(); } catch (err) { toast(err.message, null, { error: true }); } break; }
+      case 'inv-rectify': { const causa = await promptDialog({ title: 'Factura rectificativa', text: 'Se crea un borrador en la serie de rectificativas que anula la factura completa (importes en negativo). Para una rectificación parcial, ajusta después los importes de las líneas del borrador. Indica la causa.', label: 'Causa', placeholder: 'Error en el importe / sesión no realizada…', ok: 'Crear borrador' }); if (causa === null) break; try { const d = C.rectifyDraft(App.state, App.selectedInvoice, causa.trim() || undefined); commit(st => { st.invoices.push(d); }, { toast: 'Borrador de rectificativa creado' }); App.invoiceFilter = 'borradores'; App.selectedInvoice = d.id; render(); } catch (err) { toast(err.message, null, { error: true }); } break; }
       case 'inv-print': { const inv = App.state.invoices.find(i => i.id === App.selectedInvoice); $('#print-area').innerHTML = invoiceHtml(inv); try { window.print(); } catch (err) { toast('Este navegador no permite imprimir desde aquí: descarga el HTML y ábrelo.', null, { error: true }); } break; }
       case 'inv-download': { const inv = App.state.invoices.find(i => i.id === App.selectedInvoice); await saveFile(`${inv.numero || 'borrador'}.html`, invoiceDocument(inv), 'text/html'); break; }
+      case 'inv-pdf': { const inv = App.state.invoices.find(i => i.id === App.selectedInvoice); const pdf = C.pdfInvoice(inv, { settings: App.state.settings, patient: patient(inv.patientId) }); const bytes = Uint8Array.from(pdf, ch => ch.charCodeAt(0)); await saveFile(`${inv.numero || 'borrador'}.pdf`, bytes, 'application/pdf'); break; }
+      case 'inv-aeat': { const year = App.invoiceMonth.slice(0, 4); const csv = C.csvAEAT(App.state, year); if (csv.split('\r\n').length < 2) { toast(`No hay facturas emitidas en ${year}.`); break; } await saveFile(`libro-expedidas-${year}.csv`, '\ufeff' + csv, 'text/csv'); break; }
+      case 'inv-line-del': { commit(st => { const inv = st.invoices.find(i => i.id === App.selectedInvoice); const i = Number(el.dataset.i); if (inv.lineas.length <= 1) return; inv.lineas.splice(i, 1); if (inv.sesiones && inv.sesiones.length > i) inv.sesiones.splice(i, 1); Object.assign(inv, C.invoiceTotals(inv.lineas, inv.ivaPct || 0, inv.retPct || 0)); }, { undo: true, toast: 'Línea quitada; esa sesión vuelve a pendiente de facturar' }); break; }
       case 'inv-csv': { const csv = C.csvMonth(App.state, App.invoiceMonth); if (csv.split('\r\n').length < 2) { toast('No hay facturas emitidas ese mes.'); break; } await saveFile(`facturas-${App.invoiceMonth}.csv`, '﻿' + csv, 'text/csv'); break; }
       case 's-toggle': readSettingsForm(); App.settingsDraft[el.dataset.key] = !App.settingsDraft[el.dataset.key]; render(); break;
       case 'closed-add': { readSettingsForm(); const d = $('#closed-date').value, m = $('#closed-motivo').value.trim(); if (!d) { toast('Elige una fecha.'); break; } App.settingsDraft.closedDates = (App.settingsDraft.closedDates || []).filter(c => c.date !== d).concat([{ date: d, motivo: m }]); render(); break; }
       case 'closed-del': { readSettingsForm(); const list = (App.settingsDraft.closedDates || []).slice().sort((a, b) => a.date.localeCompare(b.date)); list.splice(Number(el.dataset.i), 1); App.settingsDraft.closedDates = list; render(); break; }
       case 'export': exportData(false); break;
+      case 'export-ics': await saveFile('consulta.ics', C.icsExport(App.state, C.isoWeekId(new Date()), 8), 'text/calendar'); break;
+      case 'copy-reminder': { const p = patient(el.dataset.pid); const s = weekSessions().find(x => x.patientId === p.id); if (!s) break; const d = C.dateOfDay(App.weekId, s.day); const txt = `Hola, te recuerdo la cita del ${C.DAY_NAMES[s.day].toLowerCase()} ${d.getDate()} de ${C.MONTHS[d.getMonth()]} a las ${C.fmtHour(s.hour)}${p.modalidad === 'online' ? ' (online)' : ''}. Si no puedes venir, avísame con antelación. ¡Hasta entonces!`; try { await navigator.clipboard.writeText(txt); toast('Recordatorio copiado: pégalo en tu app de mensajes.'); } catch (err) { await promptDialog({ title: 'Recordatorio', label: 'Copia este texto', value: txt, ok: 'Cerrar' }); } break; }
+      case 'add-session': commit(st => { const p = st.patients.find(x => x.id === el.dataset.pid); p.sesiones = Math.max(1, slotsOf(p)) + 1; }, { undo: true, toast: 'Añadido a "Sin hueco": arrástralo a otro hueco o pulsa Recolocar' }); break;
       case 'export-plain': exportData(true); break;
       case 'import': importData(); break;
       case 'pw-set': setPassword(false); break;
@@ -1185,8 +1273,17 @@
   document.addEventListener('keydown', e => {
     App.lastActivity = Date.now();
     if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'z' && !e.shiftKey && !e.target.closest('input, textarea')) { e.preventDefault(); undo(); }
+    if (Kb.active) {
+      if (e.key === 'ArrowRight') { e.preventDefault(); kbStep(1, true); return; }
+      if (e.key === 'ArrowLeft') { e.preventDefault(); kbStep(-1, true); return; }
+      if (e.key === 'ArrowDown') { e.preventDefault(); kbStep(1, false); return; }
+      if (e.key === 'ArrowUp') { e.preventDefault(); kbStep(-1, false); return; }
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); kbEnd(true); return; }
+      if (e.key === 'Escape') { e.preventDefault(); kbEnd(false); return; }
+    }
     if (e.key === 'Escape') { if (Drag.active) dragEnd(e, true); closePopover(); if ($('#dialog-root').innerHTML) closeDialog(); else if (App.selectedPatient) openSheet(null); }
-    if ((e.key === 'Enter' || e.key === ' ') && e.target.classList && e.target.classList.contains('box')) { e.preventDefault(); openSheet(e.target.dataset.pid); }
+    if (e.key === ' ' && e.target.classList && e.target.classList.contains('box')) { e.preventDefault(); kbStart(e.target); return; }
+    if (e.key === 'Enter' && e.target.classList && e.target.classList.contains('box')) { e.preventDefault(); openSheet(e.target.dataset.pid); }
   });
   document.addEventListener('click', e => { if (e.target.matches('[data-overlay]')) closeDialog(); });
   document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') checkLock(); });

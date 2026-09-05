@@ -218,5 +218,69 @@ await test('migración: rellena huecos y rechaza versiones futuras', () => {
   assert.throws(() => Core.migrate({ foo: 1 }), /no reconocido/);
 });
 
+
+// ---- nuevas capacidades ----
+await test('festivos: Pascua y festivos nacionales', async () => {
+  assert.equal(Core.toISODate(Core.easterSunday(2026)), '2026-04-05');
+  assert.equal(Core.toISODate(Core.easterSunday(2027)), '2027-03-28');
+  assert.equal(Core.toISODate(Core.easterSunday(2024)), '2024-03-31');
+  const h = Core.spanishHolidays(2026);
+  assert.ok(h.some(x => x.date === '2026-04-03' && x.motivo === 'Viernes Santo'));
+  assert.ok(h.some(x => x.date === '2026-10-12'));
+  const st = Core.defaultState();
+  assert.ok(Core.closedInfo(st.settings, '2026-12-25'));
+  st.settings.autoHolidays = false;
+  assert.equal(Core.closedInfo(st.settings, '2026-12-25'), null);
+});
+
+await test('solver: dos sesiones por semana y lista de espera fuera', async () => {
+  const st = Core.defaultState();
+  const a = Core.newPatient(st, { alias: 'A', sesiones: 2 });
+  const w = Core.newPatient(st, { alias: 'W', enEspera: true, prioridad: 'urgente' });
+  st.patients.push(a, w);
+  const r = Core.propose(st, { seed: 1, now: () => 0 });
+  const ua = r.units.filter(u => u.patientId === a.id);
+  assert.equal(ua.length, 2);
+  assert.ok(ua.every(u => u.to));
+  assert.ok(!r.units.some(u => u.patientId === w.id), 'en espera no se planifica');
+  Core.applyProposal(st, r);
+  assert.equal(st.slots.filter(s => s.patientId === a.id).length, 2);
+  assert.equal(Core.weekSessions(st, '2026-W37').filter(s => s.patientId === a.id).length, 2);
+});
+
+await test('lista de espera: sugerencias por prioridad y compatibilidad', async () => {
+  const st = Core.defaultState();
+  const n = Core.newPatient(st, { alias: 'Normal', enEspera: true, prioridad: 'normal' });
+  const u = Core.newPatient(st, { alias: 'Urgente', enEspera: true, prioridad: 'urgente' });
+  const x = Core.newPatient(st, { alias: 'NoPuede', enEspera: true, prioridad: 'urgente' }); x.avail.J.t = 0;
+  st.patients.push(n, u, x);
+  const s = Core.suggestForSlot(st, Core.weekSessions(st, '2026-W37'), 'J', 17);
+  assert.deepEqual(s.map(c => c.patient.alias), ['Urgente', 'Normal']);
+});
+
+await test('exportaciones: ICS anonimizado, CSV AEAT y PDF válido', async () => {
+  const st = Core.defaultState();
+  const p = Core.newPatient(st, { alias: 'Marta R.', modalidad: 'online', billing: { nombreFiscal: 'Marta Ruiz', nif: '12345678Z', direccion: 'C/ Mayor 1', modo: 'mensual', retencion: 0 } });
+  st.patients.push(p);
+  st.slots.push({ id: 's1', patientId: p.id, day: 'L', hour: 10 });
+  const ics = Core.icsExport(st, '2026-W37', 2);
+  assert.ok(ics.startsWith('BEGIN:VCALENDAR') && ics.includes('SUMMARY:Sesión (online)') && !ics.includes('Marta'));
+  assert.equal((ics.match(/BEGIN:VEVENT/g) || []).length, 2);
+  assert.match(ics, /DTSTART:20260907T100000/);
+  Core.closeWeek(st, '2026-W37', Core.weekReview(st, '2026-W37'));
+  st.invoices.push(...Core.generateDrafts(st, { idGen: () => 'i1', today: '2026-09-30' }));
+  st.settings.emisor = { nombre: 'Psicóloga Ejemplo', nif: '00000000T', direccion: 'Calle Uno 1', email: '', telefono: '', colegiado: 'M-12345', registro: '' };
+  Core.issueInvoice(st, 'i1', '2026-09-30');
+  const csv = Core.csvAEAT(st, 2026);
+  const rows = csv.split('\r\n');
+  assert.equal(rows.length, 2);
+  assert.match(rows[1], /^30\/09\/2026;07\/09\/2026;F-\d{4};1;12345678Z;Marta Ruiz;01;S1;E1;;60,00;0,00;60,00;60,00;;0,00;$/);
+  const pdf = Core.pdfInvoice(st.invoices[0], { settings: st.settings, patient: p });
+  assert.ok(pdf.startsWith('%PDF-1.4'));
+  assert.ok(pdf.includes('/Helvetica') && pdf.includes('endobj') && pdf.includes('%%EOF'));
+  assert.ok(pdf.includes('Marta Ruiz') && pdf.includes('Psic\xf3loga Ejemplo'), 'texto con acentos en WinAnsi');
+  assert.equal(Core.wrapText('uno dos tres cuatro cinco seis', 10, 60).length >= 3, true);
+});
+
 console.log(`\n${passed} ok, ${failed} fallos`);
 process.exit(failed ? 1 : 0);

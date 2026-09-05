@@ -47,6 +47,7 @@ const Core = (() => {
       weekAnchor: '2026-09-07',
       office: defaultOffice(),            // despacho disponible para sesiones presenciales (por día y franja)
       closedDates: [],                    // [{ date: 'YYYY-MM-DD', motivo }]
+      autoHolidays: true,                 // festivos nacionales de España calculados solos
       discreet: false,
       lockMin: 5,
       emisor: { nombre: '', nif: '', direccion: '', email: '', telefono: '', colegiado: '', registro: '' },
@@ -84,6 +85,8 @@ const Core = (() => {
       activo: true,
       avail: emptyAvail(state.settings.days),
       fixed: false,
+      sesiones: 1,                        // sesiones por semana
+      enEspera: false, prioridad: 'normal', // lista de espera
       notas: '',
       billing: { nombreFiscal: '', nif: '', direccion: '', email: '', modo: 'mensual', retencion: 0 },
     }, partial);
@@ -158,7 +161,28 @@ const Core = (() => {
   const band = (settings, hour) => hour < (settings.tardeDesde ?? 15) ? 'm' : 't';
 
   function closedInfo(settings, isoDate) {
-    return (settings.closedDates || []).find(c => c.date === isoDate) || null;
+    const manual = (settings.closedDates || []).find(c => c.date === isoDate);
+    if (manual) return manual;
+    if (settings.autoHolidays === false) return null;
+    return spanishHolidays(Number(isoDate.slice(0, 4))).find(c => c.date === isoDate) || null;
+  }
+
+  /** Domingo de Pascua (algoritmo de Meeus/Jones/Butcher). */
+  function easterSunday(year) {
+    const a = year % 19, b = Math.floor(year / 100), c = year % 100, d = Math.floor(b / 4), e = b % 4;
+    const f = Math.floor((b + 8) / 25), g = Math.floor((b - f + 1) / 3), h = (19 * a + b - d - g + 15) % 30;
+    const i = Math.floor(c / 4), k = c % 4, l = (32 + 2 * e + 2 * i - h - k) % 7, m = Math.floor((a + 11 * h + 22 * l) / 451);
+    const month = Math.floor((h + l - 7 * m + 114) / 31), day = ((h + l - 7 * m + 114) % 31) + 1;
+    return new Date(year, month - 1, day);
+  }
+
+  /** Festivos nacionales de España (los de todas las comunidades). Los autonómicos y locales se añaden a mano. */
+  function spanishHolidays(year) {
+    const e = easterSunday(year);
+    const fixed = [['01-01', 'Año Nuevo'], ['01-06', 'Epifanía'], ['05-01', 'Fiesta del Trabajo'], ['08-15', 'Asunción'], ['10-12', 'Fiesta Nacional'], ['11-01', 'Todos los Santos'], ['12-06', 'Día de la Constitución'], ['12-08', 'Inmaculada'], ['12-25', 'Navidad']];
+    const out = fixed.map(([md, motivo]) => ({ date: `${year}-${md}`, motivo, auto: true }));
+    out.push({ date: toISODate(addDays(e, -2)), motivo: 'Viernes Santo', auto: true });
+    return out.sort((a, b) => a.date.localeCompare(b.date));
   }
 
   // ---------- reglas ----------
@@ -234,7 +258,7 @@ const Core = (() => {
   function templateSessions(state) {
     const pmap = patientMap(state.patients);
     return state.slots
-      .filter(s => pmap.has(s.patientId) && pmap.get(s.patientId).activo !== false)
+      .filter(s => pmap.has(s.patientId) && pmap.get(s.patientId).activo !== false && !pmap.get(s.patientId).enEspera)
       .map(s => ({ id: s.id, patientId: s.patientId, day: s.day, hour: s.hour, parity: parityOf(pmap.get(s.patientId)) }));
   }
 
@@ -283,12 +307,15 @@ const Core = (() => {
     const rng = mulberry32(o.seed);
     const settings = state.settings;
     const pmap = patientMap(state.patients);
-    const active = state.patients.filter(p => p.activo !== false);
+    const active = state.patients.filter(p => p.activo !== false && !p.enEspera);
     const activeIds = new Set(active.map(p => p.id));
 
     const units = [];
     for (const s of state.slots) if (activeIds.has(s.patientId)) units.push({ id: s.id, patientId: s.patientId, current: { day: s.day, hour: s.hour }, isNew: false });
-    for (const p of active) if (!units.some(u => u.patientId === p.id)) units.push({ id: `new_${p.id}`, patientId: p.id, current: null, isNew: true });
+    for (const p of active) {
+      const have = units.filter(u => u.patientId === p.id).length;
+      for (let k = have; k < Math.max(1, p.sesiones || 1); k++) units.push({ id: `new_${p.id}_${k}`, patientId: p.id, current: null, isNew: true });
+    }
     const unitById = new Map(units.map(u => [u.id, u]));
 
     const assign = new Map(); // unitId → {day,hour}
@@ -495,7 +522,7 @@ const Core = (() => {
     const seen = new Set();
     for (const s of state.slots) {
       const p = pmap.get(s.patientId);
-      if (!p || p.activo === false) continue;
+      if (!p || p.activo === false || p.enEspera) continue;
       const par = parityOf(p);
       if (par !== 'AB' && par !== parity) continue;
       seen.add(s.id);
@@ -692,6 +719,207 @@ const Core = (() => {
 
   const csvCell = s => /[;"\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
 
+
+  // ---------- lista de espera ----------
+  const PRIORITY = { urgente: 0, continuidad: 1, normal: 2 };
+  /** Pacientes en espera que podrían ocupar (day, hour) esta semana, por prioridad. */
+  function suggestForSlot(state, weekSessions_, day, hour) {
+    const pmap = patientMap(state.patients);
+    const out = [];
+    for (const p of state.patients) {
+      if (!p.enEspera || p.activo === false) continue;
+      const v = canPlace({ settings: state.settings, patients: pmap, sessions: weekSessions_ }, p.id, day, hour, 'AB');
+      if (v.ok) out.push({ patient: p, pref: v.pref });
+    }
+    out.sort((a, b) => (PRIORITY[a.patient.prioridad] ?? 2) - (PRIORITY[b.patient.prioridad] ?? 2) || (b.pref - a.pref) || (a.patient.alias || '').localeCompare(b.patient.alias || ''));
+    return out;
+  }
+
+  // ---------- calendario ICS anonimizado ----------
+  function icsExport(state, fromWeekId, weeks = 8) {
+    const pad = n => String(n).padStart(2, '0');
+    const stamp = d => `${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}T${pad(d.getHours())}${pad(d.getMinutes())}00`;
+    const lines = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Cuadrante de consulta//ES', 'CALSCALE:GREGORIAN', 'X-WR-CALNAME:Consulta'];
+    let w = fromWeekId;
+    for (let i = 0; i < weeks; i++) {
+      for (const s of weekSessions(state, w)) {
+        const p = patientMap(state.patients).get(s.patientId);
+        const start = dateOfDay(w, s.day); start.setHours(s.hour, 0, 0, 0);
+        const end = new Date(start.getTime() + (p.dur || state.settings.sessionMin) * 60000);
+        lines.push('BEGIN:VEVENT', `UID:${w}-${s.id}@cuadrante`, `DTSTAMP:${stamp(new Date())}`, `DTSTART:${stamp(start)}`, `DTEND:${stamp(end)}`, `SUMMARY:Sesión${p.modalidad === 'online' ? ' (online)' : ''}`, 'END:VEVENT');
+      }
+      w = shiftWeek(w, 1);
+    }
+    lines.push('END:VCALENDAR');
+    return lines.join('\r\n');
+  }
+
+  // ---------- CSV con las columnas del libro registro de facturas expedidas (AEAT) ----------
+  function csvAEAT(state, year) {
+    const sep = ';';
+    const dec = n => round2(n).toFixed(2).replace('.', ',');
+    const head = ['Fecha Expedición', 'Fecha Operación', 'Serie', 'Número', 'NIF Destinatario', 'Nombre Destinatario', 'Clave de Operación', 'Calificación de la Operación', 'Operación Exenta', 'Tipo IVA', 'Base Imponible', 'Cuota IVA', 'Total Factura', 'Ingreso Computable', 'Tipo Retención', 'Importe Retención', 'Rectificativa de'];
+    const rows = [head.join(sep)];
+    const list = state.invoices.filter(i => i.estado !== 'borrador' && (i.fecha || '').startsWith(String(year))).sort((a, b) => (a.fecha || '').localeCompare(b.fecha || '') || (a.numero || '').localeCompare(b.numero || ''));
+    for (const i of list) {
+      const c = i.cliente || {};
+      const [serie, num] = splitNumero(i.numero || '');
+      const lastOp = i.lineas.map(l => l.fecha).sort().slice(-1)[0] || i.fecha;
+      const exenta = (i.ivaPct || 0) === 0;
+      rows.push([fmtDate(fromISODate(i.fecha)), fmtDate(fromISODate(lastOp)), serie, num, csvCell(c.nif || ''), csvCell(c.nombre || ''), '01', exenta ? 'S1' : 'S1', exenta ? 'E1' : '', exenta ? '' : String(i.ivaPct), dec(i.base), dec(i.iva || 0), dec(i.total), dec(i.base), i.retPct ? String(i.retPct) : '', dec(i.retencion || 0), i.rectificaNumero || ''].join(sep));
+    }
+    return rows.join('\r\n');
+  }
+  function splitNumero(numero) {
+    const m = numero.match(/^(.*)-(\d+)$/);
+    return m ? [m[1], String(Number(m[2]))] : ['', numero];
+  }
+
+  // ---------- PDF mínimo (Helvetica, WinAnsi) sin librerías ----------
+  const WINANSI = { '€': 0x80, '‚': 0x82, '„': 0x84, '…': 0x85, '‘': 0x91, '’': 0x92, '“': 0x93, '”': 0x94, '•': 0x95, '–': 0x96, '—': 0x97, '·': 0xB7 };
+  function toWinAnsi(str) {
+    let out = '';
+    for (const ch of String(str)) {
+      const code = ch.codePointAt(0);
+      let b;
+      if (code < 128) b = code;
+      else if (WINANSI[ch] !== undefined) b = WINANSI[ch];
+      else if (code >= 0xA0 && code <= 0xFF) b = code;
+      else b = 0x3F;
+      out += String.fromCharCode(b);
+    }
+    return out.replace(/\\/g, '\\\\').replace(/\(/g, '\\(').replace(/\)/g, '\\)').replace(/\r?\n/g, ' ');
+  }
+  // anchos aproximados de Helvetica (por 1000 unidades) para ajustar texto
+  const HELV_W = { ' ': 278, '!': 278, '"': 355, '#': 556, '$': 556, '%': 889, '&': 667, "'": 191, '(': 333, ')': 333, '*': 389, '+': 584, ',': 278, '-': 333, '.': 278, '/': 278, '0': 556, '1': 556, '2': 556, '3': 556, '4': 556, '5': 556, '6': 556, '7': 556, '8': 556, '9': 556, ':': 278, ';': 278, '<': 584, '=': 584, '>': 584, '?': 556, '@': 1015, 'A': 667, 'B': 667, 'C': 722, 'D': 722, 'E': 667, 'F': 611, 'G': 778, 'H': 722, 'I': 278, 'J': 500, 'K': 667, 'L': 556, 'M': 833, 'N': 722, 'O': 778, 'P': 667, 'Q': 778, 'R': 722, 'S': 667, 'T': 611, 'U': 722, 'V': 667, 'W': 944, 'X': 667, 'Y': 667, 'Z': 611, '[': 278, '\\': 278, ']': 278, '^': 469, '_': 556, '`': 333, 'a': 556, 'b': 556, 'c': 500, 'd': 556, 'e': 556, 'f': 278, 'g': 556, 'h': 556, 'i': 222, 'j': 222, 'k': 500, 'l': 222, 'm': 833, 'n': 556, 'o': 556, 'p': 556, 'q': 556, 'r': 333, 's': 500, 't': 278, 'u': 556, 'v': 500, 'w': 722, 'x': 500, 'y': 500, 'z': 500, '{': 334, '|': 260, '}': 334, '~': 584 };
+  function textWidth(str, size) {
+    let w = 0;
+    for (const ch of String(str)) w += HELV_W[ch] ?? 556;
+    return w * size / 1000;
+  }
+  function wrapText(str, size, maxWidth) {
+    const words = String(str).split(/\s+/), lines = []; let cur = '';
+    for (const w of words) {
+      const t = cur ? cur + ' ' + w : w;
+      if (textWidth(t, size) <= maxWidth || !cur) cur = t; else { lines.push(cur); cur = w; }
+    }
+    if (cur) lines.push(cur);
+    return lines;
+  }
+
+  /** Construye un PDF A4 a partir de "ops": [{t:'text', x, y, s, size, bold, align:'l'|'r'}, {t:'line', x1,y1,x2,y2,w}, {t:'rect', x,y,w,h}]. Coordenadas en puntos desde arriba-izquierda. */
+  function buildPdf(pages) {
+    const W = 595.28, H = 841.89;
+    const objs = [];
+    const add = body => { objs.push(body); return objs.length; };
+    const fontR = add('<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>');
+    const fontB = add('<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding >>');
+    const pageIds = [];
+    const pagesId = objs.length + 1 + pages.length * 2; // se calcula al final; placeholder
+    const contentIds = [];
+    for (const ops of pages) {
+      let c = '';
+      for (const o of ops) {
+        if (o.t === 'text') {
+          const size = o.size || 10;
+          let x = o.x;
+          if (o.align === 'r') x = o.x - textWidth(o.s, size);
+          if (o.align === 'c') x = o.x - textWidth(o.s, size) / 2;
+          const g = o.gray != null ? `${o.gray} g ` : '0 g ';
+          c += `BT ${g}/${o.bold ? 'F2' : 'F1'} ${size} Tf ${x.toFixed(2)} ${(H - o.y).toFixed(2)} Td (${toWinAnsi(o.s)}) Tj ET\n`;
+        } else if (o.t === 'line') {
+          c += `${(o.gray ?? 0)} G ${o.w || 0.6} w ${o.x1.toFixed(2)} ${(H - o.y1).toFixed(2)} m ${o.x2.toFixed(2)} ${(H - o.y2).toFixed(2)} l S\n`;
+        } else if (o.t === 'rect') {
+          c += `${(o.gray ?? 0)} G 0.6 w ${o.x.toFixed(2)} ${(H - o.y - o.h).toFixed(2)} ${o.w.toFixed(2)} ${o.h.toFixed(2)} re S\n`;
+        }
+      }
+      contentIds.push(add(`<< /Length ${c.length} >>\nstream\n${c}endstream`));
+    }
+    // páginas
+    const pagesObj = objs.length + 1 + pages.length; // id del objeto Pages
+    for (let i = 0; i < pages.length; i++) {
+      pageIds.push(add(`<< /Type /Page /Parent ${pagesObj} 0 R /MediaBox [0 0 ${W} ${H}] /Resources << /Font << /F1 ${fontR} 0 R /F2 ${fontB} 0 R >> >> /Contents ${contentIds[i]} 0 R >>`));
+    }
+    const realPages = add(`<< /Type /Pages /Kids [${pageIds.map(id => id + ' 0 R').join(' ')}] /Count ${pages.length} >>`);
+    const catalog = add(`<< /Type /Catalog /Pages ${realPages} 0 R >>`);
+    let out = '%PDF-1.4\n%\xE2\xE3\xCF\xD3\n';
+    const offsets = [];
+    objs.forEach((body, i) => { offsets.push(out.length); out += `${i + 1} 0 obj\n${body}\nendobj\n`; });
+    const xref = out.length;
+    out += `xref\n0 ${objs.length + 1}\n0000000000 65535 f \n`;
+    for (const off of offsets) out += `${String(off).padStart(10, '0')} 00000 n \n`;
+    out += `trailer\n<< /Size ${objs.length + 1} /Root ${catalog} 0 R >>\nstartxref\n${xref}\n%%EOF\n`;
+    return out;
+  }
+
+  /** PDF de una factura (mismo contenido que la vista imprimible). Devuelve string binario (latin1). */
+  function pdfInvoice(inv, ctx) {
+    const st = ctx.settings, p = ctx.patient || {}, b = p.billing || {};
+    const em = inv.emisor || st.emisor;
+    const cl = inv.cliente || { nombre: b.nombreFiscal || p.nombre || p.alias || '', nif: b.nif || '', direccion: b.direccion || '' };
+    const t = invoiceTotals(inv.lineas, inv.ivaPct || 0, inv.retPct || 0);
+    const exento = (inv.ivaPct || 0) === 0;
+    const texto = inv.textoExencion ?? (exento ? st.textoExencion : '');
+    const pago = inv.formaPago ?? st.formaPago;
+    const venc = inv.vencimientoDias ?? st.vencimientoDias;
+    const tipo = inv.rectificaDe ? 'Factura rectificativa' : (inv.tipo === 'simplificada' ? 'Factura simplificada' : 'Factura');
+    const L = 56, R = 595.28 - 56, G = 0.4;
+    const pages = []; let ops = []; let y = 64;
+    const text = (s, x, opt = {}) => ops.push({ t: 'text', s, x, y: opt.y ?? y, size: opt.size || 10, bold: !!opt.bold, align: opt.align || 'l', gray: opt.gray });
+    const line = (y1, gray = 0.75) => ops.push({ t: 'line', x1: L, y1, x2: R, y2: y1, gray });
+    // cabecera
+    text(em.nombre || '[Tu nombre]', L, { size: 18, bold: true }); y += 20;
+    const emLines = [[em.colegiado ? `Colegiado/a n.º ${em.colegiado}` : '', em.registro ? `Registro sanitario ${em.registro}` : ''].filter(Boolean).join(' · '), `NIF ${em.nif || '[NIF]'} · ${em.direccion || '[Dirección]'}`, [em.email, em.telefono].filter(Boolean).join(' · ')].filter(Boolean);
+    for (const l of emLines) { text(l, L, { gray: G, size: 9.5 }); y += 13; }
+    text(tipo.toUpperCase(), R, { y: 64, align: 'r', size: 8.5, gray: G });
+    text(inv.numero || 'BORRADOR', R, { y: 84, align: 'r', size: 16, bold: true });
+    text(`Fecha de expedición ${inv.fecha ? fmtDate(fromISODate(inv.fecha)) : '[al emitir]'}`, R, { y: 100, align: 'r', size: 9.5, gray: G });
+    let yr = 113;
+    if (inv.modo !== 'sesion') { text(`Periodo ${periodoLabel(inv.periodo)}`, R, { y: yr, align: 'r', size: 9.5, gray: G }); yr += 13; }
+    if (inv.rectificaDe) { text(`Rectifica la factura ${inv.rectificaNumero}`, R, { y: yr, align: 'r', size: 9.5, gray: G }); yr += 13; }
+    y = Math.max(y, yr) + 18;
+    // cliente
+    if (!(inv.tipo === 'simplificada' && !cl.nif)) {
+      ops.push({ t: 'rect', x: L, y: y - 4, w: R - L, h: 48, gray: 0.8 });
+      text('CLIENTE', L + 12, { y: y + 10, size: 8, gray: G });
+      text(cl.nombre || '[Nombre]', L + 12, { y: y + 24, size: 11, bold: true });
+      text([cl.nif ? `NIF ${cl.nif}` : '', cl.direccion || ''].filter(Boolean).join(' · '), L + 12, { y: y + 37, size: 9.5, gray: G });
+      y += 64;
+    }
+    if (inv.rectificaDe) { text(`Causa: ${inv.causa || ''}`, L, { size: 9.5, gray: G }); y += 16; }
+    // líneas
+    const colImp = R, colDate = L, colCon = L + 80;
+    const header = () => { text('FECHA', colDate, { size: 8, gray: G }); text('CONCEPTO', colCon, { size: 8, gray: G }); text('IMPORTE', colImp, { size: 8, gray: G, align: 'r' }); y += 6; line(y, 0); y += 14; };
+    header();
+    for (const l of inv.lineas) {
+      if (y > 760) { pages.push(ops); ops = []; y = 64; header(); }
+      const wrapped = wrapText(l.concepto, 10, colImp - 90 - colCon);
+      text(fmtDate(fromISODate(l.fecha)), colDate, {});
+      text(fmtEuro(l.importe), colImp, { align: 'r' });
+      wrapped.forEach((w, i) => text(w, colCon, { y: y + i * 12 }));
+      y += Math.max(1, wrapped.length) * 12 + 4;
+      line(y - 10, 0.85);
+    }
+    y += 10;
+    if (y > 700) { pages.push(ops); ops = []; y = 64; }
+    const tx = R - 220;
+    const tot = (label, val, opt = {}) => { text(label, tx, { gray: opt.bold ? 0 : G, size: opt.bold ? 12 : 10, bold: !!opt.bold }); text(val, R, { align: 'r', size: opt.bold ? 12 : 10, bold: !!opt.bold }); y += opt.bold ? 18 : 15; };
+    tot('Base imponible', fmtEuro(t.base));
+    tot(exento ? 'IVA' : `IVA ${inv.ivaPct} %`, exento ? 'Exenta' : fmtEuro(t.iva));
+    if (inv.retPct) tot(`Retención IRPF ${inv.retPct} %`, `-${fmtEuro(t.retencion)}`);
+    ops.push({ t: 'line', x1: tx, y1: y - 6, x2: R, y2: y - 6, gray: 0 }); y += 6;
+    tot('Total', fmtEuro(t.total), { bold: true });
+    // pie
+    let fy = 841.89 - 56 - 60;
+    const foot = [texto, `Forma de pago: ${pago}${venc ? ` · Vencimiento: ${venc} días desde la expedición` : ' · Vencimiento: a la recepción'}.`, 'Sus datos se tratan con la única finalidad de emitir esta factura y cumplir las obligaciones fiscales.'].filter(Boolean);
+    const footLines = foot.flatMap(f => wrapText(f, 8.5, R - L));
+    fy = 841.89 - 56 - footLines.length * 11;
+    ops.push({ t: 'line', x1: L, y1: fy - 10, x2: R, y2: fy - 10, gray: 0.85 });
+    for (const f of footLines) { text(f, L, { y: fy, size: 8.5, gray: G }); fy += 11; }
+    pages.push(ops);
+    return buildPdf(pages);
+  }
+
   // ---------- migración ----------
   function migrate(doc) {
     if (!doc || typeof doc !== 'object' || !('patients' in doc)) throw new Error('Fichero no reconocido');
@@ -700,7 +928,7 @@ const Core = (() => {
     out.settings = Object.assign(defaultSettings(), doc.settings || {});
     out.settings.emisor = Object.assign(defaultSettings().emisor, (doc.settings || {}).emisor || {});
     out.settings.office = Object.assign(defaultOffice(), (doc.settings || {}).office || {});
-    out.patients = (doc.patients || []).map(p => Object.assign({ activo: true, fixed: false, notas: '', modalidad: 'presencial', freq: 'semanal' }, p, {
+    out.patients = (doc.patients || []).map(p => Object.assign({ activo: true, fixed: false, notas: '', modalidad: 'presencial', freq: 'semanal', sesiones: 1, enEspera: false, prioridad: 'normal' }, p, {
       avail: Object.assign(emptyAvail(out.settings.days), p.avail || {}),
       billing: Object.assign({ nombreFiscal: '', nif: '', direccion: '', email: '', modo: 'mensual', retencion: 0 }, p.billing || {}),
     }));
@@ -714,7 +942,8 @@ const Core = (() => {
     DAYS, DAY_NAMES, DAY_SHORT, MONTHS, COLORS, COLOR_KEYS, SCHEMA_VERSION, WEIGHTS, SIMPLIFICADA_MAX,
     defaultState, defaultSettings, defaultOffice, newPatient, emptyAvail, uid,
     toISODate, fromISODate, fmtDate, fmtHour, addDays, mondayOf, isoWeekId, weekIdToMonday, shiftWeek, dateOfDay, weekParity, weekLabel, periodoLabel, workingHours, isWorkingHour, band, closedInfo,
-    parityOf, paritiesOverlap, span, availState, canPlace, validSlots, templateSessions, patientMap, hasAnyPref,
+    parityOf, paritiesOverlap, span, availState, canPlace, validSlots, templateSessions, patientMap, hasAnyPref, easterSunday, spanishHolidays,
+    suggestForSlot, icsExport, csvAEAT, pdfInvoice, buildPdf, wrapText, textWidth,
     propose, applyProposal, weekSessions, weekReview, closeWeek,
     billableSessions, generateDrafts, issueInvoice, rectifyDraft, invoiceTotals, invoiceKind, nextNumero, csvMonth, fmtEuro, round2,
     migrate,
